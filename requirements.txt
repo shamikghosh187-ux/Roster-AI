@@ -1,0 +1,7 @@
+numpy
+scipy
+sounddevice
+groq
+pyttsx3
+pyautogui
+pywhatkit
