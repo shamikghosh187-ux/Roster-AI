@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Roster generated files
+user_input.wav
+screenshot.png
+
+# Environment variables / secrets
+.env
+*.env
