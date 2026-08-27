@@ -1,7 +1,8 @@
 # 🎙️ Roster AI Assistant
 
 Roster is an AI-powered desktop voice assistant built with Python.
-
+git clone https://github.com/shamikghosh187-ux/Roster-AI.git
+cd Roster-AI-Assistant
 ## ✨ Features
 
 - 🎤 Voice command recognition
