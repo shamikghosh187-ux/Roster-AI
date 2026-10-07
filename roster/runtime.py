@@ -2,6 +2,11 @@ from roster.events import EventBus
 from roster.agent import Agent
 from roster.cancel import CancellationToken
 
+
+class RuntimeBusyError(RuntimeError):
+    """Raised when a second request is submitted while one is already running."""
+
+
 class AssistantRuntime:
     """Application-facing runtime that turns Agent internals into observable events."""
 
@@ -18,6 +23,8 @@ class AssistantRuntime:
         text = (text or "").strip()
         if not text:
             return True, ""
+        if self._active_token is not None:
+            raise RuntimeBusyError("A task is already running.")
         self._active_token = CancellationToken()
         self.events.emit("request_started", text=text)
         try:
