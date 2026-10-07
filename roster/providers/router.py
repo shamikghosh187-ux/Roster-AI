@@ -4,9 +4,13 @@ class ProviderRouter:
         if not self.providers:
             raise ValueError("at least one provider is required")
 
+    @staticmethod
+    def _name(provider):
+        return getattr(provider, "name", provider.__class__.__name__)
+
     @property
     def names(self):
-        return tuple(provider.name for provider in self.providers)
+        return tuple(self._name(provider) for provider in self.providers)
 
     def call(self, method, *args, **kwargs):
         errors = []
@@ -14,7 +18,9 @@ class ProviderRouter:
             try:
                 return getattr(provider, method)(*args, **kwargs)
             except Exception as exc:
-                errors.append(f"{provider.name}: {type(exc).__name__}: {exc}")
+                errors.append(
+                    f"{self._name(provider)}: {type(exc).__name__}: {exc}"
+                )
         raise RuntimeError("all providers failed: " + " | ".join(errors))
 
     def plan(self, *args, **kwargs):
