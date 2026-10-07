@@ -9,6 +9,7 @@ from roster.providers.groq import GroqProvider
 from roster.security import PermissionGate
 from roster.storage import SQLiteMemoryStore
 from roster.tools.builtin import ToolExecutor
+from roster.wake import WakeWordListener
 
 
 class Roster:
@@ -62,7 +63,21 @@ class Roster:
                 except OSError:
                     pass
 
+    def _wake_enabled(self) -> bool:
+        if settings.wake_mode in {"off", "disabled", "false", "0"}:
+            return False
+        if settings.provider_input not in {"auto", "voice"}:
+            return False
+        return bool(settings.groq_api_key)
+
+    def wait_for_wake_word(self) -> bool:
+        if not self._wake_enabled():
+            return True
+        return WakeWordListener().wait()
+
     def run(self):
+        if not self.wait_for_wake_word():
+            return
         self.voice.speak(f"Hello. Roster is ready with {', '.join(self.provider.names)}.")
         running = True
         while running:
