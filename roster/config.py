@@ -11,6 +11,10 @@ APP_DIR.mkdir(parents=True, exist_ok=True)
 class Settings:
     provider: str = os.getenv("ROSTER_PROVIDER", "groq")
     provider_input: str = os.getenv("ROSTER_INPUT_MODE", "auto").strip().lower()
+    wake_mode: str = os.getenv("ROSTER_WAKE_MODE", "auto").strip().lower()
+    wake_word: str = os.getenv("ROSTER_WAKE_WORD", "hey roster").strip() or "hey roster"
+    wake_chunk_seconds: float = float(os.getenv("ROSTER_WAKE_CHUNK_SECONDS", "2.5"))
+    wake_cooldown_seconds: float = float(os.getenv("ROSTER_WAKE_COOLDOWN_SECONDS", "0.5"))
     chat_model: str = os.getenv("ROSTER_CHAT_MODEL", "openai/gpt-oss-120b")
     vision_model: str = os.getenv("ROSTER_VISION_MODEL", "qwen/qwen3.6-27b")
     whisper_model: str = os.getenv("ROSTER_WHISPER_MODEL", "whisper-large-v3-turbo")
