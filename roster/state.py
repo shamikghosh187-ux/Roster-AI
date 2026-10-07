@@ -1,0 +1,1 @@
+class AgentState:\n    IDLE='idle'\n    PLANNING='planning'\n    EXECUTING='executing'\n    COMPLETED='completed'\n    FAILED='failed'\n    CANCELLED='cancelled'\n
