@@ -6,9 +6,6 @@ import urllib.parse
 import webbrowser
 from pathlib import Path
 
-import pyautogui
-import pywhatkit
-
 from roster.models import Action, Intent
 from roster.tools.registry import ToolRegistry, ToolSpec
 
@@ -28,19 +25,20 @@ class ToolExecutor:
         self.registry.register(ToolSpec(Action.LIST_FILES, "List a directory.", self._list_files))
         self.registry.register(ToolSpec(Action.READ_FILE, "Read a text file.", self._read_file))
         self.registry.register(ToolSpec(Action.FIND_IN_FILES, "Search text across files.", self._find_in_files))
-        self.registry.register(ToolSpec(Action.COMPUTER, "Perform a controlled desktop action.", self._computer, True))
+        self.registry.register(ToolSpec(Action.COMPUTER, "Perform a controlled desktop action.", self._computer, True)
 
     def execute(self, intent, user_text, vision_provider=None):
         spec = self.registry.get(intent.action)
         if not spec: return True, "I couldn't determine the requested action."
         try:
-            result = spec.handler(intent, user_text, vision_provider)
-            return intent.action is not Action.EXIT, result
+            return intent.action is not Action.EXIT, spec.handler(intent, user_text, vision_provider)
         except Exception as exc:
             return True, f"The {intent.action.value} tool failed: {exc}"
 
-    def _exit(self, intent, user_text, provider): return "Goodbye!"
-    def _chat(self, intent, user_text, provider): return intent.argument or "I'm here."
+    @staticmethod
+    def _exit(intent, user_text, provider): return "Goodbye!"
+    @staticmethod
+    def _chat(intent, user_text, provider): return intent.argument or "I'm here."
 
     @staticmethod
     def _open_app(intent, user_text, provider):
@@ -56,12 +54,14 @@ class ToolExecutor:
 
     @staticmethod
     def _youtube(intent, user_text, provider):
+        import pywhatkit
         if not intent.argument: return "What should I play?"
         pywhatkit.playonyt(intent.argument)
         return f"Playing {intent.argument}."
 
     @staticmethod
     def _whatsapp(intent, user_text, provider):
+        import pywhatkit
         if "," not in intent.argument: return "Please provide the phone number and message."
         phone, message = (x.strip() for x in intent.argument.split(",", 1))
         if not phone or not message: return "I need both the phone number and message."
@@ -70,11 +70,13 @@ class ToolExecutor:
 
     @staticmethod
     def _screen_vision(intent, user_text, provider):
+        import pyautogui
         if provider is None: return "Screen vision is unavailable."
         fd, path = tempfile.mkstemp(suffix=".png", prefix="roster-screen-"); os.close(fd)
         try:
             pyautogui.screenshot(path)
-            with open(path, "rb") as image_file: encoded = base64.b64encode(image_file.read()).decode("ascii")
+            with open(path, "rb") as image_file:
+                encoded = base64.b64encode(image_file.read()).decode("ascii")
             return provider.vision(user_text, "data:image/png;base64," + encoded)
         finally:
             try: os.remove(path)
@@ -116,11 +118,14 @@ class ToolExecutor:
 
     @staticmethod
     def _computer(intent, user_text, provider):
+        import pyautogui
         parts = intent.argument.strip().split(maxsplit=1)
         if len(parts) != 2: return "Use click x,y, type text, or press key."
         operation, value = parts
         if operation == "click":
             x, y = (int(v.strip()) for v in value.split(",", 1)); pyautogui.click(x, y); return f"Clicked at ({x}, {y})."
-        if operation == "type": pyautogui.write(value, interval=0.01); return "Typed the requested text."
-        if operation == "press": pyautogui.press(value.strip()); return f"Pressed {value.strip()}."
+        if operation == "type":
+            pyautogui.write(value, interval=0.01); return "Typed the requested text."
+        if operation == "press":
+            pyautogui.press(value.strip()); return f"Pressed {value.strip()}."
         return "Supported: click x,y | type text | press key."
