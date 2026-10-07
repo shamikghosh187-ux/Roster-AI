@@ -4,12 +4,14 @@ from roster.config import settings
 from roster.models import Action, Intent
 
 SYSTEM_PROMPT = """You are Roster, a capable Windows personal AI assistant.
-Return ONLY valid JSON with keys: action, argument, reply.
+Return ONLY valid JSON with keys: action and argument.
 Allowed actions: chat, exit, open_app, search, youtube, whatsapp, screen_vision.
 Use open_app only when explicitly asked to launch an application.
 Use search for web/search requests, youtube for media, whatsapp for an explicit message request,
 and screen_vision when the user asks you to inspect or troubleshoot the screen.
-For chat, argument must contain the final response. Never invent phone numbers."""
+For chat, argument must contain the final answer.
+Use the conversation history to understand references such as "it", "that", or "again".
+Never invent phone numbers."""
 
 class GroqProvider:
     def __init__(self):
@@ -26,12 +28,15 @@ class GroqProvider:
             )
         return str(result).strip()
 
-    def plan(self, user_text):
+    def plan(self, user_text, history=None):
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        if history:
+            messages.extend(history[-12:])
+        messages.append({"role": "user", "content": user_text})
         response = self.client.chat.completions.create(
             model=settings.chat_model,
             temperature=0.2,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT},
-                      {"role": "user", "content": user_text}],
+            messages=messages,
         )
         raw = (response.choices[0].message.content or "").strip()
         try:

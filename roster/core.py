@@ -1,13 +1,18 @@
 import os
+from roster.agent import Agent
 from roster.audio import VoiceIO
+from roster.memory import ConversationMemory
 from roster.providers.groq import GroqProvider
+from roster.security import PermissionGate
 from roster.tools.builtin import ToolExecutor
 
 class Roster:
     def __init__(self):
         self.voice = VoiceIO()
         self.provider = GroqProvider()
+        self.memory = ConversationMemory()
         self.tools = ToolExecutor()
+        self.agent = Agent(self.provider, self.tools, self.memory, PermissionGate())
 
     def run_once(self):
         audio_path = self.voice.record()
@@ -18,9 +23,7 @@ class Roster:
             if not user_text:
                 return True
             print(f"🗣️ You: {user_text}")
-            intent = self.provider.plan(user_text)
-            print(f"🧭 Action: {intent.action.value}")
-            running, result = self.tools.execute(intent, user_text, self.provider)
+            running, result = self.agent.handle(user_text)
             self.voice.speak(result)
             return running
         except Exception as exc:
