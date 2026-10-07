@@ -14,8 +14,6 @@ import time
 
 import numpy as np
 import scipy.io.wavfile as wav
-import sounddevice as sd
-
 from roster.config import settings
 from roster.providers.groq import GroqProvider
 
@@ -49,6 +47,8 @@ class WakeWordListener:
 
     def _record_chunk(self) -> str | None:
         samples = int(settings.sample_rate * self.chunk_seconds)
+        import sounddevice as sd
+
         audio = sd.rec(
             samples,
             samplerate=settings.sample_rate,
