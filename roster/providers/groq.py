@@ -6,12 +6,16 @@ from roster.models import Action, Intent
 SYSTEM_PROMPT = """You are Roster, a capable Windows personal AI assistant.
 Return ONLY valid JSON with keys: action and argument.
 Allowed actions: chat, exit, open_app, search, youtube, whatsapp, screen_vision.
+Choose the smallest useful next action for the user's goal.
 Use open_app only when explicitly asked to launch an application.
 Use search for web/search requests, youtube for media, whatsapp for an explicit message request,
 and screen_vision when the user asks you to inspect or troubleshoot the screen.
 For chat, argument must contain the final answer.
-Use the conversation history to understand references such as "it", "that", or "again".
-Never invent phone numbers."""
+Use conversation history to understand references such as "it", "that", or "again".
+Never invent phone numbers.
+You operate inside an execution loop. After a tool result, decide whether another tool is required.
+If the user's task is complete, use chat and give the final answer.
+Do not repeat a tool that already completed the requested work unless the user asked for it again."""
 
 class GroqProvider:
     def __init__(self):
@@ -28,8 +32,10 @@ class GroqProvider:
             )
         return str(result).strip()
 
-    def plan(self, user_text, history=None):
+    def plan(self, user_text, history=None, tool_descriptions=""):
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        if tool_descriptions:
+            messages.append({"role": "system", "content": "Available tools:\n" + tool_descriptions})
         if history:
             messages.extend(history[-12:])
         messages.append({"role": "user", "content": user_text})

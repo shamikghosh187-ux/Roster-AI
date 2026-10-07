@@ -12,6 +12,11 @@ class Action(str, Enum):
     SCREEN_VISION = "screen_vision"
 
 @dataclass
+class ConversationTurn:
+    role: str
+    content: str
+
+@dataclass
 class Intent:
     action: Action
     argument: str = ""
