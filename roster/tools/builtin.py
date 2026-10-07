@@ -97,8 +97,18 @@ class ToolExecutor:
 
     @staticmethod
     def _safe_path(raw_path):
-        path = Path(raw_path or ".").expanduser()
-        return path.resolve() if path.is_absolute() else (Path.cwd() / path).resolve()
+        path = Path(raw_path or ".").expanduser().resolve()
+        configured = os.getenv("ROSTER_ALLOWED_PATHS", "")
+        roots = [Path.cwd().resolve()]
+        if configured:
+            roots.extend(
+                Path(item).expanduser().resolve()
+                for item in configured.split(os.pathsep)
+                if item.strip()
+            )
+        if not any(path == root or root in path.parents for root in roots):
+            raise PermissionError("path is outside Roster allowed roots")
+        return path
 
     def _list_files(self, intent, user_text, provider):
         path = self._safe_path(intent.argument)
