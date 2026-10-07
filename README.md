@@ -22,6 +22,27 @@ Provider keys are environment secrets and must never be committed.
 
 Auto input uses microphone transcription when Groq is configured; otherwise it uses text input.
 
+## Wake word
+
+When voice mode and Groq transcription are configured, Roster defaults to a hands-free wake-word flow. Start Roster normally, and it waits quietly for **“Hey Roster”** before speaking and entering the full assistant loop.
+
+The behavior is controlled by:
+
+- `ROSTER_WAKE_MODE=auto` — enable wake mode automatically for voice input.
+- `ROSTER_WAKE_MODE=on` — force wake mode when voice input is available.
+- `ROSTER_WAKE_MODE=off` — start the assistant immediately.
+- `ROSTER_WAKE_WORD=hey roster` — customize the phrase.
+- `ROSTER_WAKE_CHUNK_SECONDS=2.5` — microphone chunk size.
+- `ROSTER_WAKE_COOLDOWN_SECONDS=0.5` — cooldown after activation.
+
+CLI examples:
+
+`python main.py --input voice --wake on`
+
+`python main.py --input voice --wake off`
+
+The wake listener reuses Roster's existing Groq transcription path, removes each temporary audio chunk after transcription, and does not send audio anywhere else. A fully closed Roster process still needs to be launched by Windows Startup/Task Scheduler if you want the machine to listen for the phrase after login.
+
 ## Install and run
 
 `python -m pip install -r requirements.txt`
