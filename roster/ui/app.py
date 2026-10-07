@@ -215,8 +215,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Cancelling current task before exit…")
             event.ignore()
             return
-        self._shutdown_thread()
-        event.accept()
+        if self._shutdown_thread():
+            event.accept()
+        else:
+            self.statusBar().showMessage(
+                "Task thread is still shutting down. Please close again when it is ready."
+            )
+            event.ignore()
 
     def _shutdown_thread(self):
         if not hasattr(self, "thread") or not self.thread.isRunning():
