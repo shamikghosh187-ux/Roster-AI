@@ -171,6 +171,9 @@ class MainWindow(QMainWindow):
         self.status.setText("● Error")
         self.statusBar().showMessage(error)
         self._add_message("System","Error: "+error)
+        if getattr(self, "close_pending", False):
+            self.close_pending = False
+            self.close()
 
     def _on_trace(self,event,data):
         item=QListWidgetItem(f"{event}  {data}")
