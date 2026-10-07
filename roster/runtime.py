@@ -27,7 +27,7 @@ class AssistantRuntime:
             running, result = self.agent.handle(text, cancellation=self._active_token)
             for item in self.agent.trace.as_dicts():
                 self.events.emit("trace", **item)
-            self.metrics.finished("completed")
+            self.metrics.finished("cancelled" if result == "Task cancelled." else "completed")
             self.events.emit("request_finished", running=running, result=result)
             return running, result
         except Exception as exc:
@@ -40,5 +40,4 @@ class AssistantRuntime:
     def cancel(self):
         if self._active_token:
             self._active_token.cancel()
-            self.metrics.finished("cancelled")
             self.events.emit("request_cancelled")
