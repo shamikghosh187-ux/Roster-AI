@@ -1,18 +1,29 @@
 import os
+
 from roster.agent import Agent
 from roster.audio import VoiceIO
+from roster.config import settings
 from roster.memory import ConversationMemory
 from roster.providers.groq import GroqProvider
 from roster.security import PermissionGate
+from roster.storage import SQLiteMemoryStore
 from roster.tools.builtin import ToolExecutor
+
 
 class Roster:
     def __init__(self):
         self.voice = VoiceIO()
         self.provider = GroqProvider()
-        self.memory = ConversationMemory()
+        self.memory = ConversationMemory(
+            store=SQLiteMemoryStore(settings.memory_db_path)
+        )
         self.tools = ToolExecutor()
-        self.agent = Agent(self.provider, self.tools, self.memory, PermissionGate())
+        self.agent = Agent(
+            self.provider,
+            self.tools,
+            self.memory,
+            PermissionGate(),
+        )
 
     def run_once(self):
         audio_path = self.voice.record()
