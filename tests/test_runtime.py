@@ -1,3 +1,5 @@
+from threading import Event, Thread
+
 from roster.agent import Agent
 from roster.runtime import AssistantRuntime, RuntimeBusyError
 
@@ -29,9 +31,21 @@ class FakeMemory:
 
 
 def test_runtime_rejects_concurrent_submission():
-    runtime = AssistantRuntime(Agent(FakeProvider(), FakeTools(), memory=FakeMemory()))
+    started = Event()
+    release = Event()
 
-    runtime._active_token = object()
+    class BlockingAgent:
+        trace = type("Trace", (), {"as_dicts": lambda self: []})()
+
+        def handle(self, *_args, **_kwargs):
+            started.set()
+            assert release.wait(2)
+            return True, "ok"
+
+    runtime = AssistantRuntime(BlockingAgent())
+    worker = Thread(target=lambda: runtime.submit("first task"))
+    worker.start()
+    assert started.wait(2)
     try:
         try:
             runtime.submit("second task")
@@ -39,7 +53,11 @@ def test_runtime_rejects_concurrent_submission():
         except RuntimeBusyError:
             pass
     finally:
-        runtime._active_token = None
+        release.set()
+        worker.join(2)
+
+    assert not worker.is_alive()
+    assert runtime.busy is False
 
 
 def test_runtime_empty_submission_does_not_start_task():
