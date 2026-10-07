@@ -1,9 +1,7 @@
-import os
-
 import pytest
 
-from roster.providers.factory import create_provider, create_router, provider_names
 from roster.providers.base import parse_intent
+from roster.providers.factory import create_provider, provider_names
 
 
 def test_provider_catalog():
@@ -27,17 +25,16 @@ def test_unknown_provider_has_clear_error():
         create_provider("not-a-provider")
 
 
-def test_factory_requires_a_configured_provider(monkeypatch):
-    monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.delenv("XAI_API_KEY", raising=False)
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.setenv("ROSTER_PROVIDER", "gemini")
-    import roster.config
-    monkeypatch.setattr(roster.config.settings, "gemini_api_key", "", raising=False)
-    with pytest.raises(RuntimeError, match="No configured AI provider"):
-        create_router()
-
-
-def test_provider_input_mode_is_safe():
-    assert os.getenv("ROSTER_INPUT_MODE", "auto") in {"auto", "voice", "text"}
+@pytest.mark.parametrize(
+    "name,env_name",
+    [
+        ("gemini", "GEMINI_API_KEY"),
+        ("xai", "XAI_API_KEY"),
+        ("claude", "ANTHROPIC_API_KEY"),
+        ("groq", "GROQ_API_KEY"),
+    ],
+)
+def test_unconfigured_provider_fails_clearly(name, env_name, monkeypatch):
+    monkeypatch.delenv(env_name, raising=False)
+    with pytest.raises(RuntimeError, match="not configured"):
+        create_provider(name)
