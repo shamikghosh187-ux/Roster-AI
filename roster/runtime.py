@@ -1,3 +1,5 @@
+from threading import Lock
+
 from roster.events import EventBus
 from roster.agent import Agent
 from roster.cancel import CancellationToken
@@ -14,21 +16,25 @@ class AssistantRuntime:
         self.agent = agent
         self.events = events or EventBus()
         self._active_token: CancellationToken | None = None
+        self._lock = Lock()
 
     @property
     def busy(self):
-        return self._active_token is not None
+        with self._lock:
+            return self._active_token is not None
 
     def submit(self, text: str):
         text = (text or "").strip()
         if not text:
             return True, ""
-        if self._active_token is not None:
-            raise RuntimeBusyError("A task is already running.")
-        self._active_token = CancellationToken()
+        with self._lock:
+            if self._active_token is not None:
+                raise RuntimeBusyError("A task is already running.")
+            token = CancellationToken()
+            self._active_token = token
         self.events.emit("request_started", text=text)
         try:
-            running, result = self.agent.handle(text, cancellation=self._active_token)
+            running, result = self.agent.handle(text, cancellation=token)
             for item in self.agent.trace.as_dicts():
                 self.events.emit("trace", **item)
             self.events.emit("request_finished", running=running, result=result)
@@ -37,9 +43,13 @@ class AssistantRuntime:
             self.events.emit("request_failed", error=type(exc).__name__, message=str(exc))
             raise
         finally:
-            self._active_token = None
+            with self._lock:
+                if self._active_token is token:
+                    self._active_token = None
 
     def cancel(self):
-        if self._active_token:
-            self._active_token.cancel()
+        with self._lock:
+            token = self._active_token
+        if token:
+            token.cancel()
             self.events.emit("request_cancelled")
