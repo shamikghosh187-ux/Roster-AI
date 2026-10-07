@@ -160,7 +160,11 @@ class MainWindow(QMainWindow):
         self.busy=False; self.send_button.setEnabled(True); self.cancel.setEnabled(False)
         self.status.setText("● Ready")
         self.statusBar().showMessage("Task complete")
-        if not running: self.close()
+        if not running:
+            self.close()
+        elif getattr(self, "close_pending", False):
+            self.close_pending = False
+            self.close()
 
     def _on_failed(self,error):
         self.busy=False; self.send_button.setEnabled(True); self.cancel.setEnabled(False)
@@ -205,9 +209,19 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Provider switch failed: {exc}")
 
     def closeEvent(self,event):
-        if hasattr(self,"thread"):
-            self.thread.quit(); self.thread.wait(2000)
+        if getattr(self, "busy", False):
+            self.runtime.cancel()
+            self.close_pending = True
+            self.statusBar().showMessage("Cancelling current task before exit…")
+            event.ignore()
+            return
+        self._shutdown_thread()
         event.accept()
+
+    def _shutdown_thread(self):
+        if hasattr(self, "thread") and self.thread.isRunning():
+            self.thread.quit()
+            self.thread.wait(5000)
 
 def launch():
     app=QApplication.instance() or QApplication([])
