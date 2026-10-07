@@ -2,6 +2,9 @@ numpy
 scipy
 sounddevice
 groq
+anthropic
+google-genai<3
+openai
 pyttsx3
 pyautogui
 pywhatkit

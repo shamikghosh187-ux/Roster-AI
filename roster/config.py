@@ -10,6 +10,7 @@ APP_DIR.mkdir(parents=True, exist_ok=True)
 @dataclass(frozen=True)
 class Settings:
     provider: str = os.getenv("ROSTER_PROVIDER", "groq")
+    provider_input: str = os.getenv("ROSTER_INPUT_MODE", "auto").strip().lower()
     chat_model: str = os.getenv("ROSTER_CHAT_MODEL", "openai/gpt-oss-120b")
     vision_model: str = os.getenv("ROSTER_VISION_MODEL", "qwen/qwen3.6-27b")
     whisper_model: str = os.getenv("ROSTER_WHISPER_MODEL", "whisper-large-v3-turbo")
