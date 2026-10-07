@@ -28,6 +28,7 @@ class Agent:
                 self.trace.record("planning", step=step+1)
                 intent=self.provider.plan(current_request,self.memory.as_messages(),tool_descriptions=self.tools.registry.descriptions())
                 self.trace.record("plan_created",action=intent.action.value,argument=intent.argument)
+                token.raise_if_cancelled()
                 if self.permissions.requires_confirmation(intent.action,self.tools.registry):
                     self.state.move(AgentState.WAITING_PERMISSION)
                     self.trace.record("permission_requested",action=intent.action.value)
@@ -37,9 +38,11 @@ class Agent:
                         self.memory.add("assistant",reply)
                         self.state.move(AgentState.COMPLETED)
                         return True,reply
+                token.raise_if_cancelled()
                 self.state.move(AgentState.EXECUTING)
                 self.trace.record("tool_started",action=intent.action.value)
                 running,result=self.tools.execute(intent,user_text,self.provider)
+                token.raise_if_cancelled()
                 self.trace.record("tool_finished",action=intent.action.value,result=str(result)[:500])
                 if intent.action in {Action.CHAT,Action.EXIT}:
                     self.memory.add("assistant",result); self.state.move(AgentState.COMPLETED)
