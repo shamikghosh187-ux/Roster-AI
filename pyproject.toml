@@ -4,10 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "roster-ai"
-version = "0.2.0"
+version = "0.3.0"
 description = "Modular personal AI assistant for Windows"
 requires-python = ">=3.10"
-dependencies = ["numpy","scipy","sounddevice","groq","pyttsx3","pyautogui","pywhatkit"]
+dependencies = ["numpy","scipy","sounddevice","groq","anthropic","google-genai<3","openai","pyttsx3","pyautogui","pywhatkit"]
+
+[project.optional-dependencies]
+desktop = ["PySide6>=6.8,<7"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
