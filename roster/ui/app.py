@@ -219,9 +219,10 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def _shutdown_thread(self):
-        if hasattr(self, "thread") and self.thread.isRunning():
-            self.thread.quit()
-            self.thread.wait(5000)
+        if not hasattr(self, "thread") or not self.thread.isRunning():
+            return True
+        self.thread.quit()
+        return self.thread.wait(5000)
 
 def launch():
     app=QApplication.instance() or QApplication([])
