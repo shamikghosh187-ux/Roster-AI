@@ -1,7 +1,13 @@
+from threading import Lock
+
 from roster.events import EventBus
 from roster.agent import Agent
 from roster.cancel import CancellationToken
 from roster.metrics import RuntimeMetrics
+
+
+class RuntimeBusyError(RuntimeError):
+    """Raised when a second request is submitted while one is already running."""
 
 class AssistantRuntime:
     """Application-facing runtime that turns Agent internals into observable events."""
@@ -11,16 +17,21 @@ class AssistantRuntime:
         self.events = events or EventBus()
         self.metrics = metrics or RuntimeMetrics()
         self._active_token: CancellationToken | None = None
+        self._lock = Lock()
 
     @property
     def busy(self):
-        return self._active_token is not None
+        with self._lock:
+            return self._active_token is not None
 
     def submit(self, text: str):
         text = (text or "").strip()
         if not text:
             return True, ""
-        self._active_token = CancellationToken()
+        with self._lock:
+            if self._active_token is not None:
+                raise RuntimeBusyError("A task is already running.")
+            self._active_token = CancellationToken()
         self.metrics.started()
         self.events.emit("request_started", text=text)
         try:
@@ -35,9 +46,12 @@ class AssistantRuntime:
             self.events.emit("request_failed", error=type(exc).__name__, message=str(exc))
             raise
         finally:
-            self._active_token = None
+            with self._lock:
+                self._active_token = None
 
     def cancel(self):
-        if self._active_token:
-            self._active_token.cancel()
+        with self._lock:
+            token = self._active_token
+        if token:
+            token.cancel()
             self.events.emit("request_cancelled")
