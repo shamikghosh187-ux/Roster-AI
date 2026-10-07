@@ -38,3 +38,19 @@ def test_unconfigured_provider_fails_clearly(name, env_name, monkeypatch):
     monkeypatch.delenv(env_name, raising=False)
     with pytest.raises(RuntimeError, match="not configured"):
         create_provider(name)
+
+
+def test_router_tries_next_provider_after_regular_failure():
+    class BrokenProvider:
+        name = "broken"
+
+        def chat(self, *_args, **_kwargs):
+            raise RuntimeError("temporary failure")
+
+    class WorkingProvider:
+        name = "working"
+
+        def chat(self, *_args, **_kwargs):
+            return "ok"
+
+    assert ProviderRouter([BrokenProvider(), WorkingProvider()]).chat("hello") == "ok"
