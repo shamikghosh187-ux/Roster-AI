@@ -1,4 +1,4 @@
-from PySide6.QtCore import QThread, Qt
+from PySide6.QtCore import QThread, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QFont
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout,
@@ -29,14 +29,21 @@ class PermissionDialog(QDialog):
         layout.addWidget(buttons)
 
 class DesktopPermissionGate(PermissionGate):
-    def __init__(self, parent):
+    def __init__(self, window):
         super().__init__(enabled=True)
-        self.parent = parent
+        self.window = window
+
     def request(self, intent):
-        dialog = PermissionDialog(intent.action, intent.argument, self.parent)
-        return dialog.exec() == QDialog.Accepted
+        import threading
+        decision = {"event": threading.Event(), "allowed": False,
+                    "action": intent.action.value, "argument": intent.argument}
+        self.window.permission_request.emit(decision)
+        decision["event"].wait()
+        return decision["allowed"]
+
 
 class MainWindow(QMainWindow):
+    permission_request = Signal(object)
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Roster — Personal AI")
@@ -44,6 +51,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(980, 650)
         self._build_ui()
         self._build_runtime()
+        self.permission_request.connect(self._show_permission)
 
     def _build_ui(self):
         self.setStyleSheet("""
