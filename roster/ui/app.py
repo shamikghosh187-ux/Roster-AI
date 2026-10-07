@@ -128,6 +128,11 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             self._on_failed(str(exc))
 
+    def _show_permission(self, decision):
+        dialog = PermissionDialog(decision["action"], decision["argument"], self)
+        decision["allowed"] = dialog.exec() == QDialog.Accepted
+        decision["event"].set()
+
     def _key_press(self,event):
         if event.key()==Qt.Key_Return and event.modifiers() & Qt.ControlModifier:
             self.submit(); return
