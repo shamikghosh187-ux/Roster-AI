@@ -1,31 +1,43 @@
-# 🎙️ Roster AI Assistant
+# Roster AI
 
-Roster is a modular Windows personal AI assistant built with Python.
+Roster is a modular Windows personal AI assistant with voice input, text fallback, multi-step tool execution, memory, screen understanding, controlled computer actions, and interchangeable AI providers.
 
-## Capabilities
+## AI providers
 
-- Voice input and text-to-speech
-- AI conversation and multi-step planning
-- Persistent local conversation memory
-- Screen vision
-- Windows application launching
-- Controlled desktop interaction
-- Local file listing and reading
-- Text search across local files
-- Google and YouTube actions
-- WhatsApp messaging with confirmation
+Roster supports Groq, Gemini, xAI/Grok, and Claude. Select the primary provider with ROSTER_PROVIDER and optional failover providers with ROSTER_PROVIDER_FALLBACKS.
 
-## Run
+Provider keys are environment secrets and must never be committed.
 
-```bash
-git clone https://github.com/shamikghosh187-ux/Roster-AI.git
-cd Roster-AI
-python -m pip install -r requirements.txt
-python main.py
-```
+## Provider examples
 
-Set `GROQ_API_KEY` before running.
+`python main.py --list-providers`
+
+`python main.py --provider gemini --input text`
+
+`python main.py --provider claude --input text`
+
+`python main.py --provider xai --input text`
+
+`python main.py --provider groq --input auto`
+
+Auto input uses microphone transcription when Groq is configured; otherwise it uses text input.
+
+## Install and run
+
+`python -m pip install -r requirements.txt`
+
+`python main.py`
+
+## Architecture
+
+Roster includes core agent orchestration, SQLite memory, permissions, tracing, cancellation, file tools, computer controls, browser safety, tasks, scheduler primitives, provider routing, and diagnostics.
 
 ## Security
 
-Roster requires confirmation before side-effecting desktop, app-launch, and messaging actions. Content discovered in files or screenshots is treated as data, not as user instructions.
+API keys come from environment variables. Side-effecting tools require confirmation. File tools are scoped to approved roots. Browser access rejects local/private/reserved network targets. File and screenshot content is treated as data, not instructions.
+
+## Development
+
+`python -m compileall roster`
+
+`pytest -q`
