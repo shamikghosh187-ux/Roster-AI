@@ -10,6 +10,10 @@ class Action(str, Enum):
     YOUTUBE = "youtube"
     WHATSAPP = "whatsapp"
     SCREEN_VISION = "screen_vision"
+    LIST_FILES = "list_files"
+    READ_FILE = "read_file"
+    FIND_IN_FILES = "find_in_files"
+    COMPUTER = "computer"
 
 @dataclass
 class ConversationTurn:

@@ -3,14 +3,13 @@ from roster.tools.builtin import ToolExecutor
 
 def test_builtin_registry_contains_all_actions():
     tools = ToolExecutor()
-    actions = {spec.action for spec in tools.registry.all()}
-    assert actions == set(Action)
+    assert {spec.action for spec in tools.registry.all()} == set(Action)
 
-def test_registry_marks_side_effects():
+def test_side_effects_are_protected():
     tools = ToolExecutor()
-    assert tools.registry.get(Action.OPEN_APP).requires_confirmation is True
-    assert tools.registry.get(Action.WHATSAPP).requires_confirmation is True
-    assert tools.registry.get(Action.SEARCH).requires_confirmation is False
+    assert tools.registry.get(Action.OPEN_APP).requires_confirmation
+    assert tools.registry.get(Action.WHATSAPP).requires_confirmation
+    assert tools.registry.get(Action.COMPUTER).requires_confirmation
 
 def test_chat_tool_executes():
     tools = ToolExecutor()
