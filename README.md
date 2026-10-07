@@ -62,3 +62,14 @@ API keys come from environment variables. Side-effecting tools require confirmat
 `python -m compileall roster`
 
 `pytest -q`
+
+
+## Desktop workspace
+
+Roster includes an optional Qt desktop workspace with persistent conversation history, provider switching, background execution, live trace inspection, cancellation, and GUI-thread permission confirmation.
+
+Install the desktop layer with: `python -m pip install -r requirements-desktop.txt`
+
+Launch it with: `python main.py --ui`
+
+The CLI remains available with: `python main.py`
