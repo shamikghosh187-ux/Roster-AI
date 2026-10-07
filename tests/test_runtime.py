@@ -47,3 +47,22 @@ def test_runtime_empty_submission_does_not_start_task():
 
     assert runtime.submit("   ") == (True, "")
     assert runtime.busy is False
+
+
+def test_runtime_releases_busy_state_after_failure():
+    class FailingAgent:
+        def handle(self, *_args, **_kwargs):
+            raise RuntimeError("boom")
+
+        trace = type("Trace", (), {"as_dicts": lambda self: []})()
+
+    runtime = AssistantRuntime(FailingAgent())
+
+    try:
+        runtime.submit("fail")
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("expected RuntimeError")
+
+    assert runtime.busy is False
