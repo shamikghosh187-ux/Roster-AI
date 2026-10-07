@@ -11,7 +11,7 @@ from roster.runtime import AssistantRuntime
 from roster.security import PermissionGate
 from roster.tools.builtin import ToolExecutor
 from roster.memory import ConversationMemory
-from roster.providers.factory import create_router
+from roster.providers.factory import create_provider, create_router
 from roster.storage import SQLiteMemoryStore
 from roster.agent import Agent
 from roster.models import Action
@@ -178,8 +178,31 @@ class MainWindow(QMainWindow):
         self.chat.addItem(item); self.chat.scrollToBottom()
 
     def _provider_changed(self,name):
-        if name!="auto":
-            self.model.setText(f"Provider preference: {name}")
+        if getattr(self, "busy", False):
+            self.provider_box.blockSignals(True)
+            self.provider_box.setCurrentText("auto")
+            self.provider_box.blockSignals(False)
+            self.statusBar().showMessage("Finish the current task before changing providers.")
+            return
+
+        try:
+            self.agent.provider = create_router() if name == "auto" else create_provider(name)
+            self.model.setText(
+                settings.chat_model if name == "auto"
+                else f"Provider: {name}"
+            )
+            self.statusBar().showMessage(
+                "Automatic provider routing enabled."
+                if name == "auto"
+                else f"Provider switched to {name}."
+            )
+        except Exception as exc:
+            self.provider_box.blockSignals(True)
+            self.provider_box.setCurrentText("auto")
+            self.provider_box.blockSignals(False)
+            self.agent.provider = create_router()
+            self.model.setText(settings.chat_model)
+            self.statusBar().showMessage(f"Provider switch failed: {exc}")
 
     def closeEvent(self,event):
         if hasattr(self,"thread"):
