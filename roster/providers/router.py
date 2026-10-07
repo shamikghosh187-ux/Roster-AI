@@ -1,3 +1,5 @@
+from roster.cancel import CancelledError
+
 class ProviderRouter:
     def __init__(self, providers):
         self.providers = list(providers)
@@ -17,6 +19,8 @@ class ProviderRouter:
         for provider in self.providers:
             try:
                 return getattr(provider, method)(*args, **kwargs)
+            except CancelledError:
+                raise
             except Exception as exc:
                 errors.append(
                     f"{self._name(provider)}: {type(exc).__name__}: {exc}"
