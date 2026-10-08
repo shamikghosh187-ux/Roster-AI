@@ -126,6 +126,15 @@ class SQLiteMemoryStore:
             )
             conn.commit()
 
+    def delete_memory(self, memory_key):
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "DELETE FROM long_term_memories WHERE memory_key = ?",
+                (memory_key,),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
     def clear_memories(self):
         with self._connect() as conn:
             conn.execute("DELETE FROM long_term_memories")
