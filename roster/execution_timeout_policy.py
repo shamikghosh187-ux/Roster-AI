@@ -1,6 +1,5 @@
 """Explicit timeout policy used by execution adapters."""
 from dataclasses import dataclass
-
 @dataclass(frozen=True)
 class TimeoutPolicy:
     seconds: float = 30.0
