@@ -129,9 +129,7 @@ class ToolExecutor:
                         if len(matches)>=50: break
             except (OSError,PermissionError):
                 continue
-        return "No matches found." if not matches else "Matches:
-"+"
-".join(matches)
+        return "No matches found." if not matches else "Matches:\n"+"\n".join(matches)
 
     @staticmethod
     def _computer(intent,user_text,provider):
