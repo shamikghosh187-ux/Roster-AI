@@ -8,6 +8,10 @@ class LegacyTools:
         def descriptions():
             return "chat"
 
+        @staticmethod
+        def get(action):
+            return None
+
     registry = Registry()
 
     def __init__(self):
