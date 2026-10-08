@@ -5,11 +5,12 @@ from roster.trace import ExecutionTrace
 from roster.state import AgentState, StateMachine
 from roster.cancel import CancellationToken, CancelledError
 from roster.execution_verifier import ExecutionVerifier
+from roster.intelligent_memory import IntelligentMemory
 import inspect
 
 
 class Agent:
-    def __init__(self, provider, tools, memory=None, permissions=None, max_steps=5, trace=None, verifier=None):
+    def __init__(self, provider, tools, memory=None, permissions=None, max_steps=5, trace=None, verifier=None, intelligent_memory=None):
         if max_steps < 1:
             raise ValueError("max_steps must be positive")
         self.provider = provider
@@ -19,6 +20,7 @@ class Agent:
         self.max_steps = max_steps
         self.trace = trace or ExecutionTrace()
         self.verifier = verifier or ExecutionVerifier()
+        self.intelligent_memory = intelligent_memory
         self.state = StateMachine()
 
     def handle(self, user_text, cancellation=None):
@@ -28,6 +30,8 @@ class Agent:
         self.trace.record("request_started", user_text=user_text)
         self.state.move(AgentState.PLANNING)
         self.memory.add("user", user_text)
+        if self.intelligent_memory:
+            self.intelligent_memory.learn_from_user(user_text)
         goal = user_text.strip()
         current_request = goal
         execution_history = []
@@ -44,8 +48,13 @@ class Agent:
                     goal=goal,
                     history_size=len(execution_history),
                 )
+                planning_request = current_request
+                if self.intelligent_memory:
+                    recalled = self.intelligent_memory.context(goal + " " + current_request)
+                    if recalled:
+                        planning_request = f"{current_request}\n\n{recalled}"
                 intent = self.provider.plan(
-                    current_request,
+                    planning_request,
                     self.memory.as_messages(),
                     tool_descriptions=self.tools.registry.descriptions(),
                 )
@@ -151,6 +160,12 @@ class Agent:
                     continue
 
                 if intent.action in {Action.CHAT, Action.EXIT}:
+                    if self.intelligent_memory and intent.action is Action.CHAT:
+                        self.intelligent_memory.record_experience(
+                            goal,
+                            result_text,
+                            [item["action"] for item in execution_history],
+                        )
                     self.memory.add("assistant", result)
                     self.state.move(AgentState.COMPLETED)
                     self.trace.record(
@@ -166,6 +181,12 @@ class Agent:
                 )
 
                 if not running:
+                    if self.intelligent_memory:
+                        self.intelligent_memory.record_experience(
+                            goal,
+                            result_text,
+                            [item["action"] for item in execution_history],
+                        )
                     self.state.move(AgentState.COMPLETED)
                     self.trace.record(
                         "request_finished",
