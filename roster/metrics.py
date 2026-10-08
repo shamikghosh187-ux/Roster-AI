@@ -101,9 +101,31 @@ class Metrics:
             }
             return MetricSnapshot(dict(self._counters), timings)
 
+    def time(self, name: str) -> "_Timer":
+        return _Timer(self, name)
+
     @staticmethod
     def _normalize(name: str) -> str:
         key = name.strip()
         if not key:
             raise ValueError("metric name cannot be empty")
         return key
+
+
+
+class _Timer:
+    def __init__(self, metrics: Metrics, name: str) -> None:
+        self._metrics = metrics
+        self._name = name
+        self._started = monotonic()
+
+    def stop(self) -> float:
+        elapsed = monotonic() - self._started
+        self._metrics.observe(self._name, elapsed)
+        return elapsed
+
+    def __enter__(self) -> "_Timer":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.stop()
