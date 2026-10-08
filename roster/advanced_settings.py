@@ -98,22 +98,26 @@ class AdvancedSettings:
     def update(self,values):
         with self._lock:
             normalized={key:_coerce(_spec_map().get(key) or self._unknown(key),value) for key,value in values.items()}
-        previous={key:self._data.get(key,_spec_map()[key].default) for key in normalized}
-        changed={key:value for key,value in normalized.items() if previous[key]!=value}
-        if not changed:return normalized
-        self._data.update(changed); self._save()
-        for key,value in changed.items():
-            for callback in tuple(self._callbacks): callback(key,previous[key],value)
-        return normalized
+            previous={key:self._data.get(key,_spec_map()[key].default) for key in normalized}
+            changed={key:value for key,value in normalized.items() if previous[key]!=value}
+            if not changed:return normalized
+            self._data.update(changed); self._save()
+            callbacks=tuple(self._callbacks)
+            for key,value in changed.items():
+                for callback in callbacks: callback(key,previous[key],value)
+            return normalized
+
     @staticmethod
     def _unknown(key): raise SettingsError(f"unknown setting: {key}")
     def reset(self,key=None):
         with self._lock:
-            if key is None:self._data.clear()
+            if key is None:
+                self._data.clear()
             else:
                 if key not in _spec_map():raise SettingsError(f"unknown setting: {key}")
-            self._data.pop(key,None)
-        self._save()
+                self._data.pop(key,None)
+            self._save()
+
     def snapshot(self,include_defaults=True):
         if not include_defaults:return dict(self._data)
         return {spec.key:self.get(spec.key) for spec in SPECS}
