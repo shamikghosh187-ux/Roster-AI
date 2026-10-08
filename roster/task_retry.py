@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import time
+from roster.cancel import CancelledError
 
 @dataclass(frozen=True)
 class TaskRetryPolicy:
@@ -13,6 +14,8 @@ def run_with_task_retry(operation,policy=None,sleep=time.sleep):
     policy=policy or TaskRetryPolicy(); last=None
     for attempt in range(policy.attempts):
         try: return operation()
+        except CancelledError:
+            raise
         except Exception as exc:
             last=exc
             if attempt+1<policy.attempts and policy.delay_seconds: sleep(policy.delay_seconds)
