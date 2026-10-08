@@ -4,6 +4,7 @@ from roster.security import PermissionGate
 from roster.trace import ExecutionTrace
 from roster.state import AgentState, StateMachine
 from roster.cancel import CancellationToken, CancelledError
+import inspect
 
 
 class Agent:
@@ -51,16 +52,17 @@ class Agent:
                     token.raise_if_cancelled()
                 self.state.move(AgentState.EXECUTING)
                 self.trace.record("tool_started", action=intent.action.value)
-                try:
+                execute_parameters = inspect.signature(self.tools.execute).parameters
+                if "cancellation" in execute_parameters:
                     running, result = self.tools.execute(
                         intent,
                         user_text,
                         self.provider,
                         cancellation=token,
                     )
-                except TypeError:
-                    # Compatibility for custom/legacy executors that predate
-                    # cancellation support; cancellation is still checked here.
+                else:
+                    # Compatibility for custom/legacy executors without
+                    # cancellation support, without retrying a failed call.
                     token.raise_if_cancelled()
                     running, result = self.tools.execute(intent, user_text, self.provider)
                 token.raise_if_cancelled()
