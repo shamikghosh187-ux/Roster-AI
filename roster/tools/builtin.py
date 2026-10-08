@@ -6,6 +6,7 @@ import urllib.parse
 import webbrowser
 from pathlib import Path
 
+from roster.cancel import CancelledError
 from roster.models import Action, Intent
 from roster.tools.registry import ToolRegistry, ToolSpec
 
@@ -28,12 +29,19 @@ class ToolExecutor:
         self.registry.register(ToolSpec(Action.FIND_IN_FILES, "Search text across files.", self._find_in_files))
         self.registry.register(ToolSpec(Action.COMPUTER, "Perform a controlled desktop action.", self._computer, True))
 
-    def execute(self, intent, user_text, vision_provider=None):
+    def execute(self, intent, user_text, vision_provider=None, cancellation=None):
         spec = self.registry.get(intent.action)
         if not spec:
             return True, "I couldn't determine the requested action."
+        if cancellation is not None:
+            cancellation.raise_if_cancelled()
         try:
-            return intent.action is not Action.EXIT, spec.handler(intent, user_text, vision_provider)
+            result = spec.handler(intent, user_text, vision_provider)
+            if cancellation is not None:
+                cancellation.raise_if_cancelled()
+            return intent.action is not Action.EXIT, result
+        except CancelledError:
+            raise
         except Exception as exc:
             return True, f"The {intent.action.value} tool failed: {exc}"
 
@@ -143,10 +151,13 @@ class ToolExecutor:
         for path in root.rglob("*"):
             if len(matches) >= 50:
                 break
-            if not path.is_file() or path.stat().st_size > 2_000_000:
-                continue
             try:
                 safe_path = self._safe_path(path)
+            except (OSError, PermissionError):
+                continue
+            if not safe_path.is_file() or safe_path.stat().st_size > 2_000_000:
+                continue
+            try:
                 for line_no, line in enumerate(
                     safe_path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1
                 ):
