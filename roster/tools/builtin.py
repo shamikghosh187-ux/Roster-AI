@@ -8,6 +8,7 @@ import webbrowser
 from pathlib import Path
 
 from roster.cancel import CancelledError
+from roster.computer_control import execute_computer_command, parse_computer_command
 from roster.execution_policy_resolver import ResolvedExecutionPolicy
 from roster.models import Action, Intent
 from roster.production_tool_executor import ProductionToolExecutor
@@ -236,19 +237,5 @@ class ToolExecutor:
 
     @staticmethod
     def _computer(intent, user_text, provider):
-        import pyautogui
-        parts = intent.argument.strip().split(maxsplit=1)
-        if len(parts) != 2:
-            return "Use click x,y, type text, or press key."
-        operation, value = parts
-        if operation == "click":
-            x, y = (int(v.strip()) for v in value.split(",", 1))
-            pyautogui.click(x, y)
-            return f"Clicked at ({x}, {y})."
-        if operation == "type":
-            pyautogui.write(value, interval=0.01)
-            return "Typed the requested text."
-        if operation == "press":
-            pyautogui.press(value.strip())
-            return f"Pressed {value.strip()}."
-        return "Supported: click x,y | type text | press key."
+        command = parse_computer_command(intent.argument)
+        return execute_computer_command(command)
