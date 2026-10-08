@@ -9,6 +9,7 @@ from pathlib import Path
 
 from roster.cancel import CancelledError
 from roster.computer_control import execute_computer_command, parse_computer_command
+from roster.desktop_perception import DesktopPerception
 from roster.execution_policy_resolver import ResolvedExecutionPolicy
 from roster.models import Action, Intent
 from roster.production_tool_executor import ProductionToolExecutor
@@ -38,6 +39,7 @@ class ToolExecutor:
         self.registry.register(ToolSpec(Action.READ_FILE, "Read a text file.", self._read_file, False, True))
         self.registry.register(ToolSpec(Action.FIND_IN_FILES, "Search text across files.", self._find_in_files, False, True))
         self.registry.register(ToolSpec(Action.COMPUTER, "Control the desktop with allow-listed operations: move x,y; click x,y; double_click x,y; right_click x,y; drag x1,y1 to x2,y2; type text; press key; hotkey key1+key2; scroll amount.", self._computer, True))
+        self.registry.register(ToolSpec(Action.DESKTOP_STATE, "Observe the current desktop and return a typed world-model snapshot.", self._desktop_state, True, True))
 
     def execute(
         self,
@@ -234,6 +236,11 @@ class ToolExecutor:
             except (OSError, PermissionError):
                 continue
         return "No matches found." if not matches else "Matches:\n" + "\n".join(matches)
+
+    @staticmethod
+    def _desktop_state(intent, user_text, provider):
+        state = DesktopPerception(provider).capture(reason=intent.argument or user_text)
+        return state.to_dict()
 
     @staticmethod
     def _computer(intent, user_text, provider):

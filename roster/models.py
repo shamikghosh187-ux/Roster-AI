@@ -14,6 +14,7 @@ class Action(str, Enum):
     READ_FILE = "read_file"
     FIND_IN_FILES = "find_in_files"
     COMPUTER = "computer"
+    DESKTOP_STATE = "desktop_state"
 
 @dataclass
 class ConversationTurn:
