@@ -4,7 +4,13 @@ from groq import Groq
 
 from roster.config import settings
 from roster.models import Action, Intent
-from roster.providers.base import Provider, SYSTEM_PROMPT, build_messages, parse_intent
+from roster.providers.base import (
+    Provider,
+    WORKFLOW_PROMPT,
+    build_messages,
+    parse_intent,
+    parse_workflow,
+)
 
 
 class GroqProvider(Provider):
@@ -32,6 +38,22 @@ class GroqProvider(Provider):
             messages=messages,
         )
         return parse_intent(response.choices[0].message.content)
+
+    def workflow_plan(self, user_text, history=None, tool_descriptions=""):
+        messages = [
+            {"role": "system", "content": WORKFLOW_PROMPT},
+            {"role": "system", "content": f"Available tools:\n{tool_descriptions}"},
+        ]
+        if history:
+            messages.extend(history[-12:])
+        messages.append({"role": "user", "content": user_text})
+        response = self.client.chat.completions.create(
+            model=settings.chat_model,
+            temperature=0.1,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        return parse_workflow(response.choices[0].message.content)
 
     def chat(self, messages):
         response = self.client.chat.completions.create(
