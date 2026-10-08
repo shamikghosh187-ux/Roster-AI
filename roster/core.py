@@ -4,6 +4,7 @@ from roster.agent import Agent
 from roster.audio import VoiceIO
 from roster.config import settings
 from roster.memory import ConversationMemory
+from roster.intelligent_memory import IntelligentMemory
 from roster.providers.factory import create_router
 from roster.providers.groq import GroqProvider
 from roster.security import PermissionGate
@@ -18,15 +19,16 @@ class Roster:
         # working Windows speech backend.
         self.voice = VoiceIO()
         self.provider = create_router()
-        self.memory = ConversationMemory(
-            store=SQLiteMemoryStore(settings.memory_db_path)
-        )
+        self.memory_store = SQLiteMemoryStore(settings.memory_db_path)
+        self.memory = ConversationMemory(store=self.memory_store)
+        self.intelligent_memory = IntelligentMemory(self.memory_store)
         self.tools = ToolExecutor()
         self.agent = Agent(
             self.provider,
             self.tools,
             self.memory,
             PermissionGate(),
+            intelligent_memory=self.intelligent_memory,
         )
 
     def _text_input(self):
