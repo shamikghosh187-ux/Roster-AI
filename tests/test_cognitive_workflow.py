@@ -172,3 +172,84 @@ def test_unverified_result_is_not_available_to_later_steps():
         assert "verification unknown" in str(exc)
     else:
         raise AssertionError("unknown output was accepted as a workflow result")
+
+
+def test_workflow_requires_expected_goal_state_when_declared():
+    class Registry:
+        def get(self, action):
+            return type("Spec", (), {"action": action, "requires_confirmation": False})()
+
+    class Tools:
+        registry = Registry()
+        def execute(self, intent, goal, provider, **kwargs):
+            return False, "opened the wrong window"
+
+    class Permissions:
+        def requires_confirmation(self, action, registry):
+            return False
+
+        def request(self, intent):
+            return True
+
+    class Verifier:
+        def verify(self, intent, result, **kwargs):
+            return type("Verification", (), {"status": "verified", "evidence": "tool completed"})()
+
+    runner = CognitiveWorkflowExecutor(
+        Tools(), permissions=Permissions(), verifier=Verifier()
+    )
+
+    try:
+        runner.execute(
+            [{
+                "name": "Open editor",
+                "action": "open_app",
+                "argument": "editor",
+                "expected_state": {
+                    "conditions": {
+                        "result": {"contains": "Project Editor"}
+                    }
+                },
+            }],
+            "open the editor",
+            provider=object(),
+        )
+    except RuntimeError as exc:
+        assert "goal-state unsatisfied" in str(exc)
+    else:
+        raise AssertionError("workflow accepted an unsatisfied expected state")
+
+
+def test_workflow_records_satisfied_goal_state():
+    class Registry:
+        def get(self, action):
+            return type("Spec", (), {"action": action, "requires_confirmation": False})()
+
+    class Tools:
+        registry = Registry()
+        def execute(self, intent, goal, provider, **kwargs):
+            return False, "Project Editor is active"
+
+    class Permissions:
+        def requires_confirmation(self, action, registry):
+            return False
+
+    class Verifier:
+        def verify(self, intent, result, **kwargs):
+            return type("Verification", (), {"status": "verified", "evidence": "ok"})()
+
+    runner = CognitiveWorkflowExecutor(
+        Tools(), permissions=Permissions(), verifier=Verifier()
+    )
+    _, result, execution = runner.execute(
+        [{
+            "name": "Open editor",
+            "action": "open_app",
+            "argument": "editor",
+            "expected_state": {"conditions": {"result": {"contains": "Project Editor"}}},
+        }],
+        "open editor",
+        provider=object(),
+    )
+    assert execution[-1]["goal_state"] == "satisfied"
+    assert "Project Editor" in result
