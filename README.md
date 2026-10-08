@@ -73,3 +73,19 @@ Install the desktop layer with: `python -m pip install -r requirements-desktop.t
 Launch it with: `python main.py --ui`
 
 The CLI remains available with: `python main.py`
+
+## Production diagnostics
+
+Roster includes a dependency-light diagnostic command for installation and configuration checks:
+
+`python main.py --doctor`
+
+The doctor reports configuration issues, dependency availability, and which provider credentials are configured **without printing credential values**. Runtime health primitives are also available to integration layers through `roster.health` and `roster.runtime_health`.
+
+### Production runtime principles
+
+- Preserve existing public runtime APIs when adding infrastructure.
+- Keep secrets out of diagnostics and telemetry.
+- Prefer explicit health/readiness signals over implicit startup assumptions.
+- Keep metrics thread-safe and dependency-light.
+- Keep provider, audio, UI, and computer integrations behind composition boundaries.
