@@ -8,3 +8,15 @@ def test_memory_record_rejects_invalid_confidence():
     try: MemoryRecord("x","y",confidence=2)
     except ValueError as exc: assert "confidence" in str(exc)
     else: raise AssertionError("expected validation error")
+
+
+def test_memory_metadata_isolated_from_input():
+    metadata={"source":"user"}
+    record=MemoryRecord("name","Roster",metadata=metadata)
+    metadata["source"]="changed"
+    assert record.metadata["source"]=="user"
+
+def test_memory_record_rejects_empty_identity():
+    import pytest
+    with pytest.raises(ValueError): MemoryRecord(" ","value")
+    with pytest.raises(ValueError): MemoryRecord("key","value",kind=" ")
