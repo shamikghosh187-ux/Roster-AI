@@ -14,6 +14,8 @@ from roster.wake import WakeWordListener
 
 class Roster:
     def __init__(self):
+        # VoiceIO is intentionally lazy: text-only startup must not require a
+        # working Windows speech backend.
         self.voice = VoiceIO()
         self.provider = create_router()
         self.memory = ConversationMemory(
@@ -39,10 +41,20 @@ class Roster:
             transcription_provider = GroqProvider() if settings.groq_api_key else None
             use_voice = settings.provider_input in {"auto", "voice"} and transcription_provider
             if use_voice:
-                audio_path = self.voice.record()
-                if not audio_path:
-                    return True
-                user_text = transcription_provider.transcribe(audio_path)
+                try:
+                    audio_path = self.voice.record()
+                except Exception as exc:
+                    if settings.provider_input == "voice":
+                        raise
+                    print(f"⚠️ Voice input unavailable; falling back to text: {exc}")
+                    audio_path = None
+                    use_voice = False
+                if use_voice:
+                    if not audio_path:
+                        return True
+                    user_text = transcription_provider.transcribe(audio_path)
+                else:
+                    user_text = self._text_input()
             else:
                 user_text = self._text_input()
 
@@ -73,7 +85,13 @@ class Roster:
     def wait_for_wake_word(self) -> bool:
         if not self._wake_enabled():
             return True
-        return WakeWordListener().wait()
+        try:
+            return WakeWordListener().wait()
+        except Exception as exc:
+            if settings.provider_input == "auto":
+                print(f"⚠️ Wake word unavailable; continuing without it: {exc}")
+                return True
+            raise
 
     def run(self):
         if not self.wait_for_wake_word():

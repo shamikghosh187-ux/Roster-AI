@@ -68,6 +68,7 @@ class WakeWordListener:
 
     def wait(self) -> bool:
         print(f"🎙️ Waiting for wake word: “{self.wake_word}”")
+        consecutive_errors = 0
         while True:
             path = None
             try:
@@ -76,6 +77,7 @@ class WakeWordListener:
                     continue
 
                 heard = self.provider.transcribe(path)
+                consecutive_errors = 0
                 print(f"👂 Wake listener heard: {heard}")
                 if _matches_wake_word(heard, self.wake_word):
                     print("⚡ Wake word detected.")
@@ -85,7 +87,10 @@ class WakeWordListener:
                 print("\n👋 Wake listener stopped.")
                 return False
             except Exception as exc:
+                consecutive_errors += 1
                 print(f"⚠️ Wake listener: {exc}")
+                if consecutive_errors >= 3:
+                    raise RuntimeError("wake-word audio/transcription failed repeatedly") from exc
                 time.sleep(1)
             finally:
                 if path:
