@@ -31,6 +31,9 @@ class ProviderRouter:
     def plan(self, *args, **kwargs):
         return self.call("plan", *args, **kwargs)
 
+    def workflow_plan(self, *args, **kwargs):
+        return self.call("workflow_plan", *args, **kwargs)
+
     def chat(self, *args, **kwargs):
         return self.call("chat", *args, **kwargs)
 

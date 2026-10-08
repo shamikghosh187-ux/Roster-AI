@@ -8,6 +8,8 @@ from roster.execution_verifier import ExecutionVerifier
 from roster.intelligent_memory import IntelligentMemory
 import inspect
 
+from roster.cognitive_workflow import CognitiveWorkflowExecutor
+
 
 class Agent:
     def __init__(self, provider, tools, memory=None, permissions=None, max_steps=5, trace=None, verifier=None, intelligent_memory=None):
@@ -22,6 +24,56 @@ class Agent:
         self.verifier = verifier or ExecutionVerifier()
         self.intelligent_memory = intelligent_memory
         self.state = StateMachine()
+        self.cognitive_workflow = CognitiveWorkflowExecutor(
+            self.tools,
+            self.permissions,
+            self.verifier,
+            max_tasks=max(1, max_steps * 2),
+        )
+
+    def _try_cognitive_workflow(self, goal, cancellation):
+        """Let the provider produce and execute a validated multi-step workflow."""
+        token = cancellation or CancellationToken()
+        raw_steps = self.provider.workflow_plan(
+            goal,
+            self.memory.as_messages(),
+            tool_descriptions=self.tools.registry.descriptions(),
+        )
+        if not isinstance(raw_steps, list) or len(raw_steps) <= 1:
+            return None
+        self.trace.record("cognitive_workflow_planned", steps=len(raw_steps))
+        running, result, execution = self.cognitive_workflow.execute(
+            raw_steps,
+            goal,
+            self.provider,
+            cancellation=token,
+        )
+        for item in execution:
+            self.trace.record(
+                "cognitive_task_finished",
+                task=item["task"],
+                action=item["action"],
+                verification=item["verification"],
+                result=item["result"][:500],
+            )
+            self.memory.add(
+                "assistant",
+                f"[cognitive:{item['action']}] {item['result'][:1000]}",
+            )
+        self.trace.record(
+            "cognitive_workflow_finished",
+            status="completed",
+            steps=len(execution),
+        )
+        if self.intelligent_memory:
+            self.intelligent_memory.record_experience(
+                goal,
+                str(result),
+                [item["action"] for item in execution],
+            )
+        self.memory.add("assistant", result)
+        self.state.move(AgentState.COMPLETED)
+        return running, result
 
     def handle(self, user_text, cancellation=None):
         token = cancellation or CancellationToken()
@@ -32,6 +84,27 @@ class Agent:
         self.memory.add("user", user_text)
         if self.intelligent_memory:
             self.intelligent_memory.learn_from_user(user_text)
+        goal = user_text.strip()
+
+        # Prefer the cognitive graph for genuinely multi-step requests. If a
+        # provider cannot produce a valid structured workflow, retain the
+        # proven single-action loop as a safe compatibility fallback.
+        try:
+            workflow_result = self._try_cognitive_workflow(goal, token)
+            if workflow_result is not None:
+                return workflow_result
+        except CancelledError:
+            raise
+        except Exception as exc:
+            self.trace.record(
+                "cognitive_workflow_fallback",
+                error=type(exc).__name__,
+            )
+            self.memory.add(
+                "assistant",
+                f"[cognitive_workflow_fallback:{type(exc).__name__}]",
+            )
+
         goal = user_text.strip()
         current_request = goal
         execution_history = []

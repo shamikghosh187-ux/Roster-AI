@@ -27,13 +27,22 @@ class CognitivePlanner:
                 dependencies = (dependencies,)
             if not isinstance(dependencies, (list, tuple)):
                 raise CognitivePlanningError(f"step {index} dependencies must be a list")
+
+            metadata = dict(raw.get("metadata") or {})
+            # Keep the wire format compact: action/argument can live at the
+            # step level, while metadata remains available for provider hints.
+            if raw.get("action") is not None:
+                metadata["action"] = str(raw["action"]).strip().lower()
+            if raw.get("argument") is not None:
+                metadata["argument"] = str(raw["argument"])
+
             specs.append(
                 CognitiveTaskSpec(
                     name=name,
-                    input=str(raw.get("input", "")),
+                    input=str(raw.get("input", raw.get("argument", ""))),
                     depends_on=tuple(str(item) for item in dependencies),
                     priority=int(raw.get("priority", 0)),
-                    metadata=dict(raw.get("metadata") or {}),
+                    metadata=metadata,
                 )
             )
         return CognitiveTaskGraph(specs)
