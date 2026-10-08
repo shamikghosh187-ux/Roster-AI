@@ -41,7 +41,8 @@ class ProductionToolExecutor:
             values=validate_arguments(tool.input_schema, arguments or {})
             if tool.handler is None:
                 raise RuntimeError(f"tool has no handler: {tool.name}")
-            retry=TaskRetryPolicy(self.policy.max_retries + 1, 0.0)
+            retry_attempts = self.policy.max_retries + 1 if tool.retry_safe else 1
+            retry=TaskRetryPolicy(retry_attempts, 0.0)
             kwargs={} if self.sleep is None else {"sleep": self.sleep}
             def operation():
                 ensure_not_cancelled(cancellation)
