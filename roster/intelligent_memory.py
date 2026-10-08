@@ -128,5 +128,21 @@ class IntelligentMemory:
             )
         return "\n".join(lines)
 
-    def clear(self):
-        self.store.clear_memories()
+    def forget(self, query):
+        """Forget the strongest matching memory for an explicit user request."""
+        matches = self.recall(query)
+        if not matches:
+            return False
+        return self.store.delete_memory(matches[0].key)
+
+    def learn_from_user(self, text):
+        """Promote explicit/stable facts; ordinary chat stays ephemeral."""
+        text = (text or "").strip()
+        if not text or self._secret_like(text):
+            return 0
+
+        forget_match = re.match(r"(?i)^forget(?: that)? (.+)$", text)
+        if forget_match:
+            return int(self.forget(forget_match.group(1).strip()))
+
+        patterns = [
