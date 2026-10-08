@@ -133,6 +133,11 @@ class Agent:
                 "assistant",
                 f"[cognitive_workflow_fallback:{type(exc).__name__}]",
             )
+            if self.intelligent_memory:
+                self.intelligent_memory.record_failure(
+                    goal,
+                    f"{type(exc).__name__}: {str(exc)[:500]}",
+                )
 
         goal = user_text.strip()
         current_request = goal
