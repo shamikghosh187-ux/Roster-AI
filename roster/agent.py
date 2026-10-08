@@ -7,10 +7,12 @@ from roster.cancel import CancellationToken, CancelledError
 from roster.execution_verifier import ExecutionVerifier
 from roster.intelligent_memory import IntelligentMemory
 import inspect
+import json
 
 from roster.cognitive_workflow import CognitiveWorkflowExecutor
 from roster.cognitive_planner import CognitivePlanner
 from roster.adaptive_recovery import AdaptiveRecovery
+from roster.context_engine import ContextEngine
 
 
 class Agent:
@@ -25,6 +27,7 @@ class Agent:
         self.trace = trace or ExecutionTrace()
         self.verifier = verifier or ExecutionVerifier()
         self.intelligent_memory = intelligent_memory
+        self.context_engine = ContextEngine()
         self.state = StateMachine()
         self.cognitive_recovery = AdaptiveRecovery(
             self.provider,
@@ -39,6 +42,22 @@ class Agent:
             max_tasks=max(1, max_steps * 2),
         )
 
+    def _provider_messages(self):
+        messages = self.memory.as_messages()
+        context = self.context_engine.planning_context()
+        return messages + [{"role": "system", "content": context}]
+
+    def _record_context_result(self, action, result):
+        self.context_engine.record_action({
+            "action": action,
+            "result": str(result)[:1000],
+        })
+        if action == Action.DESKTOP_STATE.value:
+            try:
+                self.context_engine.observe_desktop(json.loads(str(result)))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                self.trace.record("context_observation_rejected", kind="desktop")
+
     def _try_cognitive_workflow(self, goal, cancellation):
         """Run a bounded cognitive workflow with adaptive recovery on verification failures."""
         token = cancellation or CancellationToken()
@@ -52,7 +71,7 @@ class Agent:
                 try:
                     raw_steps = self.provider.workflow_plan(
                         goal,
-                        self.memory.as_messages(),
+                        self._provider_messages(),
                         tool_descriptions=self.tools.registry.descriptions(),
                     )
                 except Exception as planning_error:
@@ -102,6 +121,7 @@ class Agent:
                         "assistant",
                         f"[cognitive:{item['action']}] {item['result'][:1000]}",
                     )
+                    self._record_context_result(item["action"], item["result"])
                 self.trace.record(
                     "cognitive_workflow_finished",
                     status="completed",
@@ -174,6 +194,8 @@ class Agent:
         if self.intelligent_memory:
             self.intelligent_memory.learn_from_user(user_text)
         goal = user_text.strip()
+        self.context_engine.begin(goal)
+        self.context_engine.set_working("request_started", True)
 
         # Prefer the cognitive graph for genuinely multi-step requests. If a
         # provider cannot produce a valid structured workflow, retain the
@@ -220,9 +242,10 @@ class Agent:
                     recalled = self.intelligent_memory.context(goal + " " + current_request)
                     if recalled:
                         planning_request = f"{current_request}\n\n{recalled}"
+                planning_request = f"{planning_request}\n\n{self.context_engine.planning_context()}"
                 intent = self.provider.plan(
                     planning_request,
-                    self.memory.as_messages(),
+                    self._provider_messages(),
                     tool_descriptions=self.tools.registry.descriptions(),
                 )
                 token.raise_if_cancelled()
@@ -299,6 +322,7 @@ class Agent:
                         "result": result_text[:1000],
                     }
                 )
+                self._record_context_result(intent.action.value, result_text)
                 self.trace.record(
                     "tool_finished",
                     action=intent.action.value,
