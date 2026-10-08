@@ -85,7 +85,13 @@ class Roster:
     def wait_for_wake_word(self) -> bool:
         if not self._wake_enabled():
             return True
-        return WakeWordListener().wait()
+        try:
+            return WakeWordListener().wait()
+        except Exception as exc:
+            if settings.provider_input == "auto":
+                print(f"⚠️ Wake word unavailable; continuing without it: {exc}")
+                return True
+            raise
 
     def run(self):
         if not self.wait_for_wake_word():
