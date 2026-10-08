@@ -71,6 +71,12 @@ class CognitiveWorkflowExecutor:
             step = ready[0]
             task = step.task
             metadata = dict(task.metadata)
+            if "expected_state" not in metadata:
+                for raw_step in raw_steps:
+                    if isinstance(raw_step, dict) and str(raw_step.get("name", "")).strip() == task.name:
+                        if raw_step.get("expected_state") is not None:
+                            metadata["expected_state"] = raw_step["expected_state"]
+                        break
             action_name = str(metadata.get("action", "")).strip().lower()
             if not action_name:
                 raise ValueError(f"task '{task.name}' has no action")
