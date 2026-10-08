@@ -23,7 +23,6 @@ class TaskOrchestrator:
                 result=self.execute(selected)
                 if hasattr(result,"ok") and not result.ok:
                     detail=result.error or "task execution failed"
-                    self.trace.record(selected.task.id,"failed",detail)
                     raise RuntimeError(detail)
                 results[selected.task.id]=result
                 completed.add(selected.task.id)
