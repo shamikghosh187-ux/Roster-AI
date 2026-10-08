@@ -1,4 +1,4 @@
-from roster.execution_policy_resolver import resolve_execution_policy
+from roster.execution_policy_resolver import ResolvedExecutionPolicy, resolve_execution_policy
 
 class Settings:
     def __init__(self, values): self.values=values
