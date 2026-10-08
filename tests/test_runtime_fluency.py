@@ -59,3 +59,22 @@ def test_factory_skips_broken_provider_and_uses_fallback(monkeypatch):
     router = factory.create_router()
 
     assert router.names == ("working",)
+
+
+def test_explicit_voice_mode_never_silently_falls_back_to_text(monkeypatch, capsys):
+    roster = Roster.__new__(Roster)
+    roster.voice = _Voice()
+    roster.agent = _Agent()
+
+    monkeypatch.setattr("roster.core.settings", type(
+        "Settings",
+        (),
+        {"groq_api_key": "", "provider_input": "voice"},
+    )())
+
+    def fail_text_input():
+        raise AssertionError("explicit voice mode must not call text input")
+
+    monkeypatch.setattr(roster, "_text_input", fail_text_input)
+    assert roster.run_once() is True
+    assert "Voice input requires GROQ_API_KEY" in capsys.readouterr().out
