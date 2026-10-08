@@ -15,3 +15,10 @@ def test_policy_resolver_uses_settings():
     assert policy.max_retries == 3
     assert policy.confirmation_required is False
     assert policy.max_parallel_tasks == 4
+
+
+def test_policy_rejects_invalid_invariants():
+    import pytest
+    with pytest.raises(ValueError): ResolvedExecutionPolicy(timeout_seconds=0)
+    with pytest.raises(ValueError): ResolvedExecutionPolicy(max_retries=-1)
+    with pytest.raises(ValueError): ResolvedExecutionPolicy(max_parallel_tasks=0)
