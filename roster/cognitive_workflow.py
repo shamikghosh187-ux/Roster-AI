@@ -7,6 +7,7 @@ import re
 from roster.cancel import CancellationToken
 from roster.cognitive_planner import CognitivePlanner
 from roster.execution_verifier import ExecutionVerifier
+from roster.goal_state import GoalStateEngine
 from roster.models import Action, Intent
 from roster.security import PermissionGate
 from roster.workflow_trust import (
@@ -27,6 +28,15 @@ class WorkflowVerificationError(RuntimeError):
         self.execution = list(execution)
 
 
+class WorkflowGoalStateError(RuntimeError):
+    def __init__(self, task_name, status, evidence, execution):
+        super().__init__(f"workflow step '{task_name}' goal-state {status}: {evidence}")
+        self.task_name = task_name
+        self.status = status
+        self.evidence = evidence
+        self.execution = list(execution)
+
+
 class WorkflowPermissionDenied(RuntimeError):
     pass
 
@@ -40,6 +50,7 @@ class CognitiveWorkflowExecutor:
         self.verifier = verifier or ExecutionVerifier()
         self.max_tasks = max_tasks
         self.planner = CognitivePlanner()
+        self.goal_state = GoalStateEngine()
 
     def execute(self, raw_steps, goal, provider, *, cancellation=None):
         if not isinstance(raw_steps, list) or len(raw_steps) > self.max_tasks:
@@ -60,6 +71,12 @@ class CognitiveWorkflowExecutor:
             step = ready[0]
             task = step.task
             metadata = dict(task.metadata)
+            if "expected_state" not in metadata:
+                for raw_step in raw_steps:
+                    if isinstance(raw_step, dict) and str(raw_step.get("name", "")).strip() == task.name:
+                        if raw_step.get("expected_state") is not None:
+                            metadata["expected_state"] = raw_step["expected_state"]
+                        break
             action_name = str(metadata.get("action", "")).strip().lower()
             if not action_name:
                 raise ValueError(f"task '{task.name}' has no action")
@@ -96,19 +113,11 @@ class CognitiveWorkflowExecutor:
             if "confirmed" in execute_parameters:
                 kwargs["confirmed"] = confirmed
 
-            running, result = self.tools.execute(
-                intent,
-                goal,
-                provider,
-                **kwargs,
-            )
+            running, result = self.tools.execute(intent, goal, provider, **kwargs)
             token.raise_if_cancelled()
             result_text = str(result)
             verification = self.verifier.verify(
-                intent,
-                result,
-                goal=goal,
-                provider=provider,
+                intent, result, goal=goal, provider=provider
             )
 
             execution.append({
@@ -118,10 +127,7 @@ class CognitiveWorkflowExecutor:
                 "result": result_text[:2000],
                 "verification": verification.status,
             })
-            # Only verified results enter the workflow data store. This keeps
-            # failed/unknown tool output from becoming trusted planning input.
-            # Keep compatibility with custom verifiers that expose only status.
-            # Success remains strict: only an explicit "verified" status passes.
+
             verified = getattr(
                 verification,
                 "verified",
@@ -129,11 +135,24 @@ class CognitiveWorkflowExecutor:
             )
             if not verified:
                 raise WorkflowVerificationError(
-                    task.name,
-                    verification.status,
-                    verification.evidence,
-                    execution,
+                    task.name, verification.status, verification.evidence, execution
                 )
+
+            expected_state = self.goal_state.parse(metadata.get("expected_state"))
+            if expected_state is not None:
+                evaluation = self.goal_state.evaluate(
+                    expected_state,
+                    result=result_text,
+                )
+                execution[-1]["goal_state"] = evaluation.status
+                execution[-1]["goal_state_evidence"] = evaluation.evidence
+                if not evaluation.satisfied:
+                    raise WorkflowGoalStateError(
+                        task.name,
+                        evaluation.status,
+                        evaluation.evidence,
+                        execution,
+                    )
 
             outputs[task.id] = result_text
             outputs[task.name] = result_text
