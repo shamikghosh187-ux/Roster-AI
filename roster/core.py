@@ -52,7 +52,15 @@ class Roster:
                 if use_voice:
                     if not audio_path:
                         return True
-                    user_text = transcription_provider.transcribe(audio_path)
+                    try:
+                        user_text = transcription_provider.transcribe(audio_path)
+                    except Exception as exc:
+                        if settings.provider_input == "voice":
+                            raise
+                        print(
+                            f"⚠️ Voice transcription unavailable; falling back to text: {exc}"
+                        )
+                        user_text = self._text_input()
                 else:
                     user_text = self._text_input()
             else:
