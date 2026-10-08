@@ -32,3 +32,18 @@ def test_executor_enforces_configured_timeout():
     result=ProductionToolExecutor(make_catalog(handler=slow),policy).execute("t1","echo")
     assert result.ok is False
     assert "exceeded" in result.error
+
+
+def test_executor_preserves_cancellation():
+    from roster.cancel import CancellationToken, CancelledError
+    token=CancellationToken(); token.cancel()
+    with pytest.raises(CancelledError):
+        ProductionToolExecutor(make_catalog(),ResolvedExecutionPolicy()).execute("t1","echo",cancellation=token)
+
+def test_executor_passes_context_to_handler():
+    seen=[]
+    def handler(args,ctx):
+        seen.append(ctx); return "ok"
+    result=ProductionToolExecutor(make_catalog(handler=handler),ResolvedExecutionPolicy()).execute("t1","echo",context={"request_id":"r1"})
+    assert result.ok
+    assert seen == [{"request_id":"r1"}]
