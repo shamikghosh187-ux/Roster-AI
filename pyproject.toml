@@ -15,4 +15,4 @@ test = ["pytest>=8,<10"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["-q"]
+addopts = "-q"
