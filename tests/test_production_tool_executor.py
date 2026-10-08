@@ -2,10 +2,11 @@ from roster.execution_policy_resolver import ResolvedExecutionPolicy
 from roster.production_tool_executor import ProductionToolExecutor
 from roster.tool_catalog import ToolCatalog
 from roster.tool_contract import ToolContract
+import time
 
-def make_catalog(sensitive=False):
+def make_catalog(sensitive=False, handler=None):
     catalog=ToolCatalog()
-    catalog.register(ToolContract("echo","echo",input_schema={},sensitive=sensitive,handler=lambda args,ctx:"ok"))
+    catalog.register(ToolContract("echo","echo",input_schema={},sensitive=sensitive,handler=handler or (lambda args,ctx:"ok")))
     return catalog
 
 def test_executor_runs_registered_tool():
@@ -22,3 +23,12 @@ def test_executor_reports_unknown_tool():
     result=ProductionToolExecutor(make_catalog(),ResolvedExecutionPolicy()).execute("t1","missing")
     assert result.ok is False
     assert "unknown tool" in result.error
+
+def test_executor_enforces_configured_timeout():
+    def slow(args,ctx):
+        time.sleep(0.05)
+        return "late"
+    policy=ResolvedExecutionPolicy(timeout_seconds=0.001)
+    result=ProductionToolExecutor(make_catalog(handler=slow),policy).execute("t1","echo")
+    assert result.ok is False
+    assert "exceeded" in result.error
