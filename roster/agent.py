@@ -314,14 +314,37 @@ class Agent:
                     evidence=verification.evidence[:500],
                     step=step + 1,
                 )
-                if verification.failed and running:
-                    self.memory.add("assistant", f"[verification_failed:{intent.action.value}] {verification.evidence}")
+                if verification.failed or verification.unknown:
+                    status_label = verification.status
+                    self.memory.add(
+                        "assistant",
+                        f"[verification_{status_label}:{intent.action.value}] "
+                        f"{verification.evidence}",
+                    )
+                    if self.intelligent_memory:
+                        self.intelligent_memory.record_failure(
+                            goal,
+                            f"{intent.action.value}: {status_label}: "
+                            f"{verification.evidence[:500]}",
+                            [intent.action.value],
+                        )
                     self.state.move(AgentState.OBSERVING)
+                    if not running:
+                        self.state.move(AgentState.FAILED)
+                        self.trace.record(
+                            "request_finished",
+                            status="unverified",
+                            steps=len(execution_history),
+                        )
+                        return True, (
+                            "I performed the action, but I couldn't verify that it "
+                            "achieved the requested state."
+                        )
                     current_request = (
-                        "The last action executed but verification failed. "
-                        "Do not repeat it blindly. Diagnose the failure, choose "
-                        "a safe recovery action, or explain that the goal cannot "
-                        "be completed. "
+                        "The last action did not produce a verified success. "
+                        "Do not repeat it blindly. Diagnose the failure or unknown "
+                        "state, inspect the current state, choose a safe recovery "
+                        "action, or explain that the goal cannot be completed. "
                         f"Goal: {goal}. Latest evidence: {verification.evidence}"
                     )
                     continue
