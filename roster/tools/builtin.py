@@ -12,6 +12,7 @@ from roster.execution_policy_resolver import ResolvedExecutionPolicy
 from roster.models import Action, Intent
 from roster.production_tool_executor import ProductionToolExecutor
 from roster.registry_adapter import catalog_from_registry
+from roster.tool_contract import ToolContract
 from roster.tools.registry import ToolRegistry, ToolSpec
 
 
@@ -54,6 +55,34 @@ class ToolExecutor:
             # Keep the production catalog synchronized with the registry so
             # runtime/tool overrides and test doubles are honored.
             self._production.catalog = catalog_from_registry(self.registry)
+            # Preserve the registry's dynamic get() contract as well as its
+            # static catalog, so runtime overrides remain observable.
+            active_spec = self.registry.get(intent.action)
+            if active_spec is not None:
+                def invoke(args, ctx, spec=active_spec):
+                    context = ctx if isinstance(ctx, dict) else {}
+                    argument = args.get("argument", context.get("argument", ""))
+                    metadata = dict(context.get("metadata", {}))
+                    metadata.update({k: v for k, v in args.items() if k != "argument"})
+                    runtime_intent = Intent(
+                        action=spec.action,
+                        argument=argument,
+                        metadata=metadata,
+                    )
+                    return spec.handler(
+                        runtime_intent,
+                        context.get("raw_input", ""),
+                        context.get("tool_context"),
+                    )
+                self._production.catalog.upsert(
+                    ToolContract(
+                        name=active_spec.action.value,
+                        description=active_spec.description,
+                        input_schema={"type": "object"},
+                        sensitive=active_spec.requires_confirmation,
+                        handler=invoke,
+                    )
+                )
             result = self._production.execute(
                 intent.action.value,
                 intent.action.value,
