@@ -8,6 +8,7 @@ import webbrowser
 from pathlib import Path
 
 from roster.cancel import CancelledError
+from roster.computer_control import execute_computer_command, parse_computer_command
 from roster.execution_policy_resolver import ResolvedExecutionPolicy
 from roster.models import Action, Intent
 from roster.production_tool_executor import ProductionToolExecutor
@@ -36,7 +37,7 @@ class ToolExecutor:
         self.registry.register(ToolSpec(Action.LIST_FILES, "List a directory.", self._list_files, False, True))
         self.registry.register(ToolSpec(Action.READ_FILE, "Read a text file.", self._read_file, False, True))
         self.registry.register(ToolSpec(Action.FIND_IN_FILES, "Search text across files.", self._find_in_files, False, True))
-        self.registry.register(ToolSpec(Action.COMPUTER, "Perform a controlled desktop action.", self._computer, True))
+        self.registry.register(ToolSpec(Action.COMPUTER, "Control the desktop with allow-listed operations: move x,y; click x,y; double_click x,y; right_click x,y; drag x1,y1 to x2,y2; type text; press key; hotkey key1+key2; scroll amount.", self._computer, True))
 
     def execute(
         self,
@@ -236,19 +237,5 @@ class ToolExecutor:
 
     @staticmethod
     def _computer(intent, user_text, provider):
-        import pyautogui
-        parts = intent.argument.strip().split(maxsplit=1)
-        if len(parts) != 2:
-            return "Use click x,y, type text, or press key."
-        operation, value = parts
-        if operation == "click":
-            x, y = (int(v.strip()) for v in value.split(",", 1))
-            pyautogui.click(x, y)
-            return f"Clicked at ({x}, {y})."
-        if operation == "type":
-            pyautogui.write(value, interval=0.01)
-            return "Typed the requested text."
-        if operation == "press":
-            pyautogui.press(value.strip())
-            return f"Pressed {value.strip()}."
-        return "Supported: click x,y | type text | press key."
+        command = parse_computer_command(intent.argument)
+        return execute_computer_command(command)
