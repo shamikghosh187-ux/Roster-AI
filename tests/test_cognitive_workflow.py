@@ -71,3 +71,104 @@ def test_workflow_rejects_invalid_action():
         assert "invalid action" in str(exc)
     else:
         raise AssertionError("invalid workflow action was accepted")
+
+
+def test_workflow_blocks_result_from_reaching_side_effecting_action():
+    from roster.workflow_trust import WorkflowTrustBoundaryError
+
+    class Registry:
+        def get(self, action):
+            return type("Spec", (), {"action": action, "requires_confirmation": True})()
+
+    class Tools:
+        def __init__(self):
+            self.registry = Registry()
+            self.calls = []
+
+        def execute(self, intent, goal, provider, **kwargs):
+            self.calls.append((intent.action.value, intent.argument))
+            return True, "unexpected"
+
+    class Permissions:
+        def requires_confirmation(self, action, registry):
+            return False
+
+        def request(self, intent):
+            return True
+
+    class Verifier:
+        def verify(self, intent, result, **kwargs):
+            return type("Verification", (), {"status": "verified", "evidence": "ok"})()
+
+    runner = CognitiveWorkflowExecutor(
+        Tools(),
+        permissions=Permissions(),
+        verifier=Verifier(),
+    )
+
+    try:
+        runner.execute(
+            [
+                {"name": "Find", "action": "search", "argument": "report"},
+                {
+                    "name": "Open",
+                    "action": "open_app",
+                    "argument": "$RESULT:1",
+                    "depends_on": ["1"],
+                },
+            ],
+            "find and open the report",
+            provider=object(),
+        )
+    except WorkflowTrustBoundaryError as exc:
+        assert "side-effecting action" in str(exc)
+    else:
+        raise AssertionError("untrusted result reached a side-effecting action")
+
+
+def test_unverified_result_is_not_available_to_later_steps():
+    class Registry:
+        def get(self, action):
+            return type("Spec", (), {"action": action, "requires_confirmation": False})()
+
+    class Tools:
+        registry = Registry()
+
+        def execute(self, intent, goal, provider, **kwargs):
+            return True, "not actually verified"
+
+    class Permissions:
+        def requires_confirmation(self, action, registry):
+            return False
+
+        def request(self, intent):
+            return True
+
+    class Verifier:
+        def verify(self, intent, result, **kwargs):
+            return type("Verification", (), {"status": "unknown", "evidence": "uncertain"})()
+
+    runner = CognitiveWorkflowExecutor(
+        Tools(),
+        permissions=Permissions(),
+        verifier=Verifier(),
+    )
+
+    try:
+        runner.execute(
+            [
+                {"name": "Observe", "action": "search", "argument": "report"},
+                {
+                    "name": "Read",
+                    "action": "read_file",
+                    "argument": "$RESULT:1",
+                    "depends_on": ["1"],
+                },
+            ],
+            "observe and read",
+            provider=object(),
+        )
+    except RuntimeError as exc:
+        assert "verification unknown" in str(exc)
+    else:
+        raise AssertionError("unknown output was accepted as a workflow result")

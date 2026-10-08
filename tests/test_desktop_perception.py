@@ -57,8 +57,6 @@ def test_capture_normalizes_vision_output(monkeypatch):
     fake = FakePyAutoGUI()
     fake_module = types.SimpleNamespace(size=fake.size, screenshot=fake.screenshot)
     monkeypatch.setitem(sys.modules, "pyautogui", fake_module)
-    monkeypatch.setattr(pyautogui, "size", fake.size)
-    monkeypatch.setattr(pyautogui, "screenshot", fake.screenshot)
 
     state = DesktopPerception(FakeProvider()).capture(reason="test")
     assert state.source == "vision"
@@ -77,8 +75,6 @@ def test_capture_without_provider_is_observation_only(monkeypatch):
     fake = FakePyAutoGUI()
     fake_module = types.SimpleNamespace(size=fake.size, screenshot=fake.screenshot)
     monkeypatch.setitem(sys.modules, "pyautogui", fake_module)
-    monkeypatch.setattr(pyautogui, "size", fake.size)
-    monkeypatch.setattr(pyautogui, "screenshot", fake.screenshot)
 
     state = DesktopPerception().capture()
     assert state.source == "local"

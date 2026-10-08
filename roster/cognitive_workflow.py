@@ -9,6 +9,10 @@ from roster.cognitive_planner import CognitivePlanner
 from roster.execution_verifier import ExecutionVerifier
 from roster.models import Action, Intent
 from roster.security import PermissionGate
+from roster.workflow_trust import (
+    WorkflowResultReference,
+    validate_result_reference,
+)
 
 
 _RESULT_RE = re.compile(r"\$RESULT:([^\s]+)")
@@ -66,7 +70,7 @@ class CognitiveWorkflowExecutor:
                 raise ValueError(f"task '{task.name}' has invalid action: {action_name}") from exc
 
             argument = str(metadata.get("argument", task.input))
-            argument = self._resolve_results(argument, outputs, graph)
+            argument = self._resolve_results(argument, outputs, graph, action)
             intent = Intent(action=action, argument=argument, metadata=metadata)
 
             confirmed = False
@@ -114,9 +118,8 @@ class CognitiveWorkflowExecutor:
                 "result": result_text[:2000],
                 "verification": verification.status,
             })
-            outputs[task.id] = result_text
-            outputs[task.name] = result_text
-
+            # Only verified results enter the workflow data store. This keeps
+            # failed/unknown tool output from becoming trusted planning input.
             # Keep compatibility with custom verifiers that expose only status.
             # Success remains strict: only an explicit "verified" status passes.
             verified = getattr(
@@ -132,6 +135,8 @@ class CognitiveWorkflowExecutor:
                     execution,
                 )
 
+            outputs[task.id] = result_text
+            outputs[task.name] = result_text
             completed.add(task.id)
             if not running and action is Action.EXIT:
                 break
@@ -140,12 +145,18 @@ class CognitiveWorkflowExecutor:
         return False, final, execution
 
     @staticmethod
-    def _resolve_results(argument, outputs, graph):
+    def _resolve_results(argument, outputs, graph, action):
         def replace(match):
             key = match.group(1)
+            reference = WorkflowResultReference(key)
+            validate_result_reference(action, reference)
             if key.isdigit() and 1 <= int(key) <= len(graph.specs):
                 task = graph.plan.steps[int(key) - 1].task
-                return outputs.get(task.id, match.group(0))
-            return outputs.get(key, match.group(0))
+                if task.id not in outputs:
+                    raise ValueError(f"workflow result '{key}' is not available")
+                return outputs[task.id]
+            if key not in outputs:
+                raise ValueError(f"workflow result '{key}' is not available")
+            return outputs[key]
 
         return _RESULT_RE.sub(replace, argument)
