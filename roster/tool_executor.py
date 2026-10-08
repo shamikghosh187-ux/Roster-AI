@@ -1,3 +1,4 @@
+from roster.cancel import CancelledError
 from roster.tool_result import ToolResult
 from roster.tool_validation import validate_arguments
 
@@ -14,5 +15,7 @@ class ToolExecutor:
             args=validate_arguments(tool.input_schema,arguments)
             if tool.handler is None: return ToolResult.failure(f"tool has no handler: {tool.name}")
             return ToolResult.success(tool.handler(args,context))
+        except CancelledError:
+            raise
         except Exception as exc:
             return ToolResult.failure(str(exc))
