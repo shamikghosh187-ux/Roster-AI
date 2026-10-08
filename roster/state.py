@@ -11,8 +11,8 @@ class AgentState(str,Enum):
     CANCELLED="cancelled"
 
 _ALLOWED={
-    AgentState.IDLE:{AgentState.PLANNING},
-    AgentState.PLANNING:{AgentState.WAITING_PERMISSION,AgentState.EXECUTING,AgentState.FAILED,AgentState.CANCELLED},
+    AgentState.IDLE:{AgentState.PLANNING,AgentState.EXECUTING},
+    AgentState.PLANNING:{AgentState.WAITING_PERMISSION,AgentState.EXECUTING,AgentState.COMPLETED,AgentState.FAILED,AgentState.CANCELLED},
     AgentState.WAITING_PERMISSION:{AgentState.EXECUTING,AgentState.COMPLETED,AgentState.FAILED,AgentState.CANCELLED},
     AgentState.EXECUTING:{AgentState.OBSERVING,AgentState.COMPLETED,AgentState.FAILED,AgentState.CANCELLED},
     AgentState.OBSERVING:{AgentState.PLANNING,AgentState.COMPLETED,AgentState.FAILED,AgentState.CANCELLED},
