@@ -18,3 +18,10 @@ def test_invalid_provider_is_reported():
 
 def test_default_settings_validate():
     assert validate_config(settings) == ()
+
+
+def test_config_rejects_empty_runtime_paths_and_models():
+    from dataclasses import replace
+    cfg=replace(settings,memory_db_path=" ",chat_model="",vision_model="ok",whisper_model="ok")
+    fields={issue.field for issue in validate_config(cfg)}
+    assert {"memory_db_path","chat_model"} <= fields

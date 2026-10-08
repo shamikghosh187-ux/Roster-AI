@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
+from roster.task_graph_validation import validate_dependencies
 from roster.task_model import Task
-from roster.task_dependencies import DependencyGraph
 
 @dataclass(frozen=True)
 class PlanStep:
@@ -11,9 +11,11 @@ class PlanStep:
 class TaskPlan:
     steps: list[PlanStep]=field(default_factory=list)
     def add(self,task,depends_on=()):
-        graph=DependencyGraph()
-        for step in self.steps: graph.add(step.task.id,step.depends_on)
-        graph.add(task.id,depends_on)
-        self.steps.append(PlanStep(task,tuple(depends_on)))
+        candidate=PlanStep(task,tuple(depends_on))
+        validate_dependencies([*self.steps,candidate])
+        self.steps.append(candidate)
+        return self
+    def validate(self):
+        validate_dependencies(self.steps)
         return self
     def ids(self): return tuple(step.task.id for step in self.steps)

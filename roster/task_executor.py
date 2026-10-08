@@ -1,3 +1,4 @@
+from roster.cancel import CancelledError
 from roster.task_events import make_task_event
 from roster.task_model import TaskStatus
 from roster.task_state import TaskStateStore
@@ -8,14 +9,40 @@ class TaskExecutor:
         self.tool_executor=tool_executor
         self.state=state or TaskStateStore()
         self.events=[]
-    def execute(self,task,tool_name,arguments,request_id=""):
-        self.state.add(task)
-        self.state.move(task.id,TaskStatus.PLANNING)
-        self.state.move(task.id,TaskStatus.READY)
-        self.state.move(task.id,TaskStatus.RUNNING)
+
+    def execute(self,task,tool_name,arguments,request_id="",*,cancellation=None,context=None):
+        if self.state.get(task.id) is None:
+            self.state.add(task)
+        current=self.state.get(task.id).status
+        if current == TaskStatus.PENDING:
+            self.state.move(task.id,TaskStatus.PLANNING)
+            self.state.move(task.id,TaskStatus.READY)
+            self.state.move(task.id,TaskStatus.RUNNING)
+        elif current == TaskStatus.READY:
+            self.state.move(task.id,TaskStatus.RUNNING)
+        elif current != TaskStatus.RUNNING:
+            raise RuntimeError(f"task is not executable from state: {current.value}")
+
+        if cancellation is not None:
+            cancellation.raise_if_cancelled()
         self.events.append(make_task_event(task.id,"started",tool=tool_name))
         invocation=ToolInvocation(tool_name,arguments,task.id,request_id).normalized()
-        result=self.tool_executor.execute(invocation.tool_name,invocation.arguments,task.id)
+        try:
+            if hasattr(self.tool_executor,"execute_request"):
+                result=self.tool_executor.execute_request(invocation,cancellation=cancellation,context=context)
+            else:
+                if cancellation is not None:
+                    cancellation.raise_if_cancelled()
+                result=self.tool_executor.execute(invocation.tool_name,invocation.arguments,context)
+        except CancelledError:
+            self.state.move(task.id,TaskStatus.CANCELLED)
+            self.events.append(make_task_event(task.id,"cancelled"))
+            raise
+        except Exception as exc:
+            self.state.move(task.id,TaskStatus.FAILED)
+            self.events.append(make_task_event(task.id,"failed",error=str(exc)))
+            raise
+
         if result.ok:
             self.state.move(task.id,TaskStatus.COMPLETED)
             self.events.append(make_task_event(task.id,"completed"))

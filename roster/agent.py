@@ -7,6 +7,8 @@ from roster.cancel import CancellationToken, CancelledError
 
 class Agent:
     def __init__(self, provider, tools, memory=None, permissions=None, max_steps=5, trace=None):
+        if max_steps < 1:
+            raise ValueError("max_steps must be positive")
         self.provider=provider
         self.tools=tools
         self.memory=memory or ConversationMemory()
@@ -17,6 +19,7 @@ class Agent:
 
     def handle(self, user_text, cancellation=None):
         token=cancellation or CancellationToken()
+        self.state.reset()
         self.trace.clear()
         self.trace.record("request_started", user_text=user_text)
         self.state.move(AgentState.PLANNING)
@@ -25,6 +28,8 @@ class Agent:
         try:
             for step in range(self.max_steps):
                 token.raise_if_cancelled()
+                if step > 0:
+                    self.state.move(AgentState.PLANNING)
                 self.trace.record("planning", step=step+1)
                 intent=self.provider.plan(current_request,self.memory.as_messages(),tool_descriptions=self.tools.registry.descriptions())
                 self.trace.record("plan_created",action=intent.action.value,argument=intent.argument)
@@ -49,6 +54,7 @@ class Agent:
                 if not running:
                     self.state.move(AgentState.COMPLETED); self.trace.record("request_finished",status="completed")
                     return running,result
+                self.state.move(AgentState.OBSERVING)
                 current_request="Continue the user's task from the latest tool result. If complete, use chat and answer concisely. Latest tool result: "+str(result)
             self.state.move(AgentState.FAILED); self.trace.record("request_finished",status="step_limit")
             return True,"I reached the execution limit before finishing the task."

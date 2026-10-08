@@ -38,8 +38,10 @@ class AssistantRuntime:
             running, result = self.agent.handle(text, cancellation=self._active_token)
             for item in self.agent.trace.as_dicts():
                 self.events.emit("trace", **item)
-            self.metrics.finished("cancelled" if result == "Task cancelled." else "completed")
-            self.events.emit("request_finished", running=running, result=result)
+            agent_state=getattr(getattr(self.agent,"state",None),"state",None)
+            outcome="cancelled" if self._active_token.cancelled or getattr(agent_state,"value",agent_state) == "cancelled" else "completed"
+            self.metrics.finished(outcome)
+            self.events.emit("request_finished", running=running, result=result, outcome=outcome)
             return running, result
         except Exception as exc:
             self.metrics.finished("failed")
