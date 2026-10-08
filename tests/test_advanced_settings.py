@@ -48,3 +48,13 @@ def test_profile_is_path_safe(tmp_path):
         pass
     else:
         raise AssertionError("unsafe profile name was accepted")
+
+
+def test_documented_choice_values_are_enforced(tmp_path):
+    settings=AdvancedSettings(tmp_path/"settings.json")
+    import pytest
+    with pytest.raises(SettingsError): settings.set("assistant.confirmation","sometimes")
+    with pytest.raises(SettingsError): settings.set("assistant.autonomy","reckless")
+    with pytest.raises(SettingsError): settings.set("privacy.mode","public")
+    settings.set("assistant.confirmation","always")
+    assert settings.get("assistant.confirmation")=="always"
