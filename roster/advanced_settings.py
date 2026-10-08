@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json,os,tempfile
 from dataclasses import dataclass
+from threading import RLock
 from pathlib import Path
 from typing import Any,Callable
 
@@ -64,7 +65,7 @@ class AdvancedSettings:
     def __init__(self,path=None):
         self.path=Path(path or Path.home()/".roster"/"settings.json").expanduser()
         self.path.parent.mkdir(parents=True,exist_ok=True)
-        self._callbacks=[]; self._data=self._load()
+        self._callbacks=[]; self._lock=RLock(); self._data=self._load()
     def _load(self):
         if not self.path.exists(): return {}
         try: raw=json.loads(self.path.read_text(encoding="utf-8"))
@@ -82,8 +83,11 @@ class AdvancedSettings:
     def get(self,key,default=None):
         spec=_spec_map().get(key)
         if spec is None: raise SettingsError(f"unknown setting: {key}")
-        return self._data.get(key,spec.default if default is None else default)
+        with self._lock:return self._data.get(key,spec.default if default is None else default)
     def set(self,key,value):
+        with self._lock:
+            return self._set_locked(key,value)
+    def _set_locked(self,key,value):
         spec=_spec_map().get(key)
         if spec is None: raise SettingsError(f"unknown setting: {key}")
         normalized=_coerce(spec,value); previous=self.get(key)
@@ -92,8 +96,9 @@ class AdvancedSettings:
         for callback in tuple(self._callbacks): callback(key,previous,normalized)
         return normalized
     def update(self,values):
-        normalized={key:_coerce(_spec_map().get(key) or self._unknown(key),value) for key,value in values.items()}
-        previous={key:self.get(key) for key in normalized}
+        with self._lock:
+            normalized={key:_coerce(_spec_map().get(key) or self._unknown(key),value) for key,value in values.items()}
+        previous={key:self._data.get(key,_spec_map()[key].default) for key in normalized}
         changed={key:value for key,value in normalized.items() if previous[key]!=value}
         if not changed:return normalized
         self._data.update(changed); self._save()
@@ -103,9 +108,10 @@ class AdvancedSettings:
     @staticmethod
     def _unknown(key): raise SettingsError(f"unknown setting: {key}")
     def reset(self,key=None):
-        if key is None:self._data.clear()
-        else:
-            if key not in _spec_map():raise SettingsError(f"unknown setting: {key}")
+        with self._lock:
+            if key is None:self._data.clear()
+            else:
+                if key not in _spec_map():raise SettingsError(f"unknown setting: {key}")
             self._data.pop(key,None)
         self._save()
     def snapshot(self,include_defaults=True):
