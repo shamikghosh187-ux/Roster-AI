@@ -41,6 +41,7 @@ class ExecutionVerifier:
             Action.LIST_FILES,
             Action.READ_FILE,
             Action.FIND_IN_FILES,
+            Action.DESKTOP_STATE,
         }:
             return VerificationResult("verified", text[:500])
 
