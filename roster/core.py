@@ -38,6 +38,16 @@ class Roster:
     def run_once(self):
         audio_path = None
         try:
+            # Explicit voice mode must never silently become text mode. Auto mode
+            # is the only mode allowed to fall back when voice is unavailable.
+            if settings.provider_input == "voice" and not settings.groq_api_key:
+                print("❌ Voice input requires GROQ_API_KEY; staying in voice mode.")
+                return True
+
+            if settings.provider_input == "voice" and not settings.groq_api_key:
+                print("❌ Voice input requires GROQ_API_KEY; staying in voice mode.")
+                return True
+
             transcription_provider = GroqProvider() if settings.groq_api_key else None
             use_voice = settings.provider_input in {"auto", "voice"} and transcription_provider
             if use_voice:
