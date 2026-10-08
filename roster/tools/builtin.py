@@ -51,6 +51,9 @@ class ToolExecutor:
         if cancellation is not None:
             cancellation.raise_if_cancelled()
         try:
+            # Keep the production catalog synchronized with the registry so
+            # runtime/tool overrides and test doubles are honored.
+            self._production.catalog = catalog_from_registry(self.registry)
             result = self._production.execute(
                 intent.action.value,
                 intent.action.value,
