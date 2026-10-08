@@ -12,12 +12,13 @@ class TaskOrchestrator:
     def run(self,plan: TaskPlan,cancellation=None):
         completed=set(); results={}; pending=list(plan.steps)
         while pending:
+            selected=None
             try:
                 check_cancelled(cancellation)
                 ready=[step for step in pending if set(step.depends_on)<=completed]
-                if not ready:
-                    raise RuntimeError("plan cannot make progress")
-                selected=max(ready,key=lambda item: (item.task.priority, -list(plan.steps).index(item)))
+                if not ready: raise RuntimeError("plan cannot make progress")
+                task=prioritize([item.task for item in ready])[0]
+                selected=next(item for item in ready if item.task.id==task.id)
                 self.trace.record(selected.task.id,"started")
                 result=self.execute(selected)
                 if hasattr(result,"ok") and not result.ok:
@@ -29,9 +30,9 @@ class TaskOrchestrator:
                 pending.remove(selected)
                 self.trace.record(selected.task.id,"completed")
             except CancelledError:
-                self.trace.record(selected.task.id if 'selected' in locals() else "plan","cancelled")
+                self.trace.record(selected.task.id if selected else "plan","cancelled")
                 raise
             except Exception as exc:
-                self.trace.record(selected.task.id if 'selected' in locals() else "plan","failed",str(exc))
+                self.trace.record(selected.task.id if selected else "plan","failed",str(exc))
                 raise
         return results
