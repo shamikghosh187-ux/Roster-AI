@@ -1,4 +1,4 @@
-from roster.cancel import CancelledError, CancellationToken
+from roster.cancel import CancelledError
 from roster.task_events import make_task_event
 from roster.task_model import TaskStatus
 from roster.task_state import TaskStateStore
