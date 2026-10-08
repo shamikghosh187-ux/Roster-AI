@@ -9,6 +9,8 @@ from roster.intelligent_memory import IntelligentMemory
 import inspect
 
 from roster.cognitive_workflow import CognitiveWorkflowExecutor
+from roster.cognitive_planner import CognitivePlanner
+from roster.adaptive_recovery import AdaptiveRecovery
 
 
 class Agent:
@@ -24,6 +26,11 @@ class Agent:
         self.verifier = verifier or ExecutionVerifier()
         self.intelligent_memory = intelligent_memory
         self.state = StateMachine()
+        self.cognitive_recovery = AdaptiveRecovery(
+            self.provider,
+            CognitivePlanner(),
+            max_replans=2,
+        )
         self.cognitive_workflow = CognitiveWorkflowExecutor(
             self.tools,
             self.permissions,
@@ -34,11 +41,33 @@ class Agent:
     def _try_cognitive_workflow(self, goal, cancellation):
         """Let the provider produce and execute a validated multi-step workflow."""
         token = cancellation or CancellationToken()
-        raw_steps = self.provider.workflow_plan(
-            goal,
-            self.memory.as_messages(),
-            tool_descriptions=self.tools.registry.descriptions(),
-        )
+        try:
+            raw_steps = self.provider.workflow_plan(
+                goal,
+                self.memory.as_messages(),
+                tool_descriptions=self.tools.registry.descriptions(),
+            )
+        except Exception as planning_error:
+            self.trace.record(
+                "cognitive_replan_requested",
+                reason=type(planning_error).__name__,
+            )
+            graph = self.cognitive_recovery.replan(
+                goal,
+                [],
+                planning_error,
+                attempt=0,
+            )
+            raw_steps = [
+                {
+                    "name": spec.name,
+                    "input": spec.input,
+                    "depends_on": list(spec.depends_on),
+                    "priority": spec.priority,
+                    "metadata": dict(spec.metadata or {}),
+                }
+                for spec in graph.specs
+            ]
         if not isinstance(raw_steps, list) or len(raw_steps) <= 1:
             return None
         self.trace.record("cognitive_workflow_planned", steps=len(raw_steps))
