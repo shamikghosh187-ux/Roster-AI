@@ -7,6 +7,7 @@ from roster.cancel import CancellationToken, CancelledError
 from roster.models import Action, Intent
 from roster.providers.router import ProviderRouter
 from roster.tools.builtin import ToolExecutor
+from roster.tools.registry import ToolSpec
 
 
 def test_voice_io_does_not_initialize_tts_at_construction(monkeypatch):
@@ -69,8 +70,15 @@ def test_builtin_executor_checks_cancellation_after_handler(monkeypatch):
         token.cancel()
         return "done"
 
-    spec = executor.registry.get(Action.CHAT)
-    monkeypatch.setattr(spec, "handler", handler)
+    monkeypatch.setattr(
+        executor.registry,
+        "get",
+        lambda action: ToolSpec(
+            Action.CHAT,
+            "chat",
+            handler,
+        ),
+    )
     with pytest.raises(CancelledError):
         executor.execute(
             Intent(action=Action.CHAT, argument="hello"),
