@@ -14,8 +14,8 @@ def make_executor(handler):
 def test_task_executor_marks_failure_when_tool_raises():
     runner=make_executor(lambda args,ctx: (_ for _ in ()).throw(RuntimeError("boom")))
     task=Task(name="echo")
-    with pytest.raises(RuntimeError):
-        runner.execute(task,"echo",{})
+    result=runner.execute(task,"echo",{})
+    assert result.ok is False
     assert runner.state.get(task.id).status is TaskStatus.FAILED
     assert runner.events[-1].name=="failed"
     assert runner.events[-1].payload["error"]=="boom"
