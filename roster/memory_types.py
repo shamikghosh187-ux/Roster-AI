@@ -1,7 +1,7 @@
 """Canonical memory categories used by retrieval and retention policies."""
-from enum import StrEnum
+from enum import Enum
 
-class MemoryKind(StrEnum):
+class MemoryKind(str, Enum):
     FACT="fact"
     PREFERENCE="preference"
     GOAL="goal"
