@@ -160,6 +160,12 @@ class Agent:
                     continue
 
                 if intent.action in {Action.CHAT, Action.EXIT}:
+                    if self.intelligent_memory and intent.action is Action.CHAT:
+                        self.intelligent_memory.record_experience(
+                            goal,
+                            result_text,
+                            [item["action"] for item in execution_history],
+                        )
                     self.memory.add("assistant", result)
                     self.state.move(AgentState.COMPLETED)
                     self.trace.record(
@@ -175,6 +181,12 @@ class Agent:
                 )
 
                 if not running:
+                    if self.intelligent_memory:
+                        self.intelligent_memory.record_experience(
+                            goal,
+                            result_text,
+                            [item["action"] for item in execution_history],
+                        )
                     self.state.move(AgentState.COMPLETED)
                     self.trace.record(
                         "request_finished",
