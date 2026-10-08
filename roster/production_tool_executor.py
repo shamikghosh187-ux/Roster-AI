@@ -18,6 +18,16 @@ class ProductionToolExecutor:
         self.clock=clock or ExecutionClock()
         self.sleep=sleep
 
+    def execute_request(self, invocation, *, confirmed=False, cancellation=None, context=None):
+        return self.execute(
+            invocation.task_id or "",
+            invocation.tool_name,
+            invocation.arguments,
+            confirmed=confirmed,
+            cancellation=cancellation,
+            context=context,
+        )
+
     def execute(self, task_id, tool_name, arguments=None, *, confirmed=False, cancellation=None, context=None):
         started=self.clock.now()
         ensure_not_cancelled(cancellation)
