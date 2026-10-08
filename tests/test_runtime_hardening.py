@@ -85,3 +85,22 @@ def test_builtin_executor_checks_cancellation_after_handler(monkeypatch):
             "hello",
             cancellation=token,
         )
+
+def test_open_app_does_not_invoke_cmd_shell(monkeypatch):
+    executor = ToolExecutor()
+    calls = []
+
+    monkeypatch.setattr("roster.tools.builtin.shutil.which", lambda target: "C:/Windows/notepad.exe")
+    monkeypatch.setattr(
+        "roster.tools.builtin.subprocess.Popen",
+        lambda args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    result = executor._open_app(
+        Intent(action=Action.OPEN_APP, argument="notepad & whoami"),
+        "open it",
+        None,
+    )
+
+    assert result == "Opening notepad & whoami."
+    assert calls == [(["C:/Windows/notepad.exe"], {"shell": False})]
