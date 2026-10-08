@@ -2,6 +2,10 @@ from roster.tool_contract import ToolContract
 
 class ToolCatalog:
     def __init__(self): self._tools: dict[str,ToolContract]={}
+    def upsert(self,tool):
+        self._tools[tool.name.strip().lower()] = tool
+        return tool
+
     def register(self,tool):
         key=tool.name.strip().lower()
         if key in self._tools: raise ValueError(f"tool already registered: {tool.name}")
