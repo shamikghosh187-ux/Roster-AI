@@ -1,5 +1,7 @@
 """Policy-aware tool execution facade for the production runtime."""
 from __future__ import annotations
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+
 from roster.execution_clock import ExecutionClock
 from roster.execution_gate import ExecutionGate
 from roster.execution_result import NormalizedExecutionResult
@@ -28,7 +30,19 @@ class ProductionToolExecutor:
                 raise RuntimeError(f"tool has no handler: {tool.name}")
             retry=TaskRetryPolicy(self.policy.max_retries + 1, 0.0)
             kwargs={} if self.sleep is None else {"sleep": self.sleep}
-            value=run_with_task_retry(lambda: tool.handler(values, None), retry, **kwargs)
+            operation=lambda: tool.handler(values, None)
+            if self.policy.timeout_seconds > 0:
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    future=pool.submit(lambda: run_with_task_retry(operation, retry, **kwargs))
+                    try:
+                        value=future.result(timeout=self.policy.timeout_seconds)
+                    except FutureTimeout as exc:
+                        future.cancel()
+                        raise TimeoutError(
+                            f"tool execution exceeded {self.policy.timeout_seconds}s"
+                        ) from exc
+            else:
+                value=run_with_task_retry(operation, retry, **kwargs)
             return NormalizedExecutionResult.completed(task_id, value, self.clock.elapsed_ms(started))
         except Exception as exc:
             return NormalizedExecutionResult.failed(task_id, str(exc), self.clock.elapsed_ms(started))
