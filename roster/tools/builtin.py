@@ -37,7 +37,7 @@ class ToolExecutor:
         self.registry.register(ToolSpec(Action.LIST_FILES, "List a directory.", self._list_files, False, True))
         self.registry.register(ToolSpec(Action.READ_FILE, "Read a text file.", self._read_file, False, True))
         self.registry.register(ToolSpec(Action.FIND_IN_FILES, "Search text across files.", self._find_in_files, False, True))
-        self.registry.register(ToolSpec(Action.COMPUTER, "Perform a controlled desktop action.", self._computer, True))
+        self.registry.register(ToolSpec(Action.COMPUTER, "Control the desktop with allow-listed operations: move x,y; click x,y; double_click x,y; right_click x,y; drag x1,y1 to x2,y2; type text; press key; hotkey key1+key2; scroll amount.", self._computer, True))
 
     def execute(
         self,
