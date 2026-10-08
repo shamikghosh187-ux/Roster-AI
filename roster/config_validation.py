@@ -33,6 +33,12 @@ def validate_config(config=settings) -> tuple[ConfigIssue, ...]:
 
     if config.provider_max_tokens < 1:
         issues.append(ConfigIssue("provider_max_tokens", "must be positive"))
+    if not isinstance(config.memory_db_path, str) or not config.memory_db_path.strip():
+        issues.append(ConfigIssue("memory_db_path", "must not be empty"))
+    for field in ("chat_model", "vision_model", "whisper_model"):
+        value=getattr(config, field, "")
+        if not isinstance(value, str) or not value.strip():
+            issues.append(ConfigIssue(field, "model name cannot be empty"))
 
     return tuple(issues)
 
