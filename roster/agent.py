@@ -40,6 +40,7 @@ class Agent:
                 )
                 token.raise_if_cancelled()
                 self.trace.record("plan_created", action=intent.action.value, argument=intent.argument)
+                confirmed = False
                 if self.permissions.requires_confirmation(intent.action, self.tools.registry):
                     self.state.move(AgentState.WAITING_PERMISSION)
                     self.trace.record("permission_requested", action=intent.action.value)
@@ -49,20 +50,24 @@ class Agent:
                         self.memory.add("assistant", reply)
                         self.state.move(AgentState.COMPLETED)
                         return True, reply
+                    confirmed = True
                     token.raise_if_cancelled()
                 self.state.move(AgentState.EXECUTING)
                 self.trace.record("tool_started", action=intent.action.value)
                 execute_parameters = inspect.signature(self.tools.execute).parameters
+                execute_kwargs = {}
                 if "cancellation" in execute_parameters:
+                    execute_kwargs["cancellation"] = token
+                if "confirmed" in execute_parameters:
+                    execute_kwargs["confirmed"] = confirmed
+                if execute_kwargs:
                     running, result = self.tools.execute(
                         intent,
                         user_text,
                         self.provider,
-                        cancellation=token,
+                        **execute_kwargs,
                     )
                 else:
-                    # Compatibility for custom/legacy executors without
-                    # cancellation support, without retrying a failed call.
                     token.raise_if_cancelled()
                     running, result = self.tools.execute(intent, user_text, self.provider)
                 token.raise_if_cancelled()
