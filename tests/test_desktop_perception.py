@@ -51,9 +51,12 @@ def test_extract_json_rejects_non_object():
 
 
 def test_capture_normalizes_vision_output(monkeypatch):
-    import pyautogui
+    import sys
+    import types
 
     fake = FakePyAutoGUI()
+    fake_module = types.SimpleNamespace(size=fake.size, screenshot=fake.screenshot)
+    monkeypatch.setitem(sys.modules, "pyautogui", fake_module)
     monkeypatch.setattr(pyautogui, "size", fake.size)
     monkeypatch.setattr(pyautogui, "screenshot", fake.screenshot)
 
@@ -68,9 +71,12 @@ def test_capture_normalizes_vision_output(monkeypatch):
 
 
 def test_capture_without_provider_is_observation_only(monkeypatch):
-    import pyautogui
+    import sys
+    import types
 
     fake = FakePyAutoGUI()
+    fake_module = types.SimpleNamespace(size=fake.size, screenshot=fake.screenshot)
+    monkeypatch.setitem(sys.modules, "pyautogui", fake_module)
     monkeypatch.setattr(pyautogui, "size", fake.size)
     monkeypatch.setattr(pyautogui, "screenshot", fake.screenshot)
 
