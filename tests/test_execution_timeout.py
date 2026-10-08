@@ -1,10 +1,7 @@
-import pytest
-from roster.execution_errors import ExecutionTimeout
-from roster.execution_timeout import run_with_timeout
+import pytest, time
+from roster.execution_timeout import ExecutionTimedOut,run_with_timeout
+from roster.execution_timeout_policy import TimeoutPolicy
 
-def test_timeout_boundary_returns_fast_operation():
-    assert run_with_timeout(lambda: "ok",1)=="ok"
-
-def test_timeout_boundary_raises_for_slow_operation():
-    import time
-    with pytest.raises(ExecutionTimeout): run_with_timeout(lambda: time.sleep(0.05),0.001)
+def test_timeout_adapter_returns_fast_operation(): assert run_with_timeout(lambda:"ok",TimeoutPolicy(.5))=="ok"
+def test_timeout_adapter_raises_for_slow_operation():
+    with pytest.raises(ExecutionTimedOut): run_with_timeout(lambda:time.sleep(.05),TimeoutPolicy(.001))
