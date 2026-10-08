@@ -1,3 +1,7 @@
+"""Runtime metrics plus lightweight generic counters/timers.
+
+The original RuntimeMetrics API is kept intact for backwards compatibility.
+"""
 from dataclasses import dataclass
 from threading import Lock
 from time import monotonic
@@ -53,3 +57,53 @@ class RuntimeMetrics:
 
     def as_dict(self):
         return self.snapshot().__dict__.copy()
+
+
+@dataclass(frozen=True)
+class MetricSnapshot:
+    counters: dict[str, int]
+    timings: dict[str, dict[str, float | int]]
+
+
+class Metrics:
+    """Thread-safe generic metrics for infrastructure components."""
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._counters: dict[str, int] = {}
+        self._timings: dict[str, list[float]] = {}
+
+    def increment(self, name: str, amount: int = 1) -> int:
+        if amount < 0:
+            raise ValueError("metric increment cannot be negative")
+        key = self._normalize(name)
+        with self._lock:
+            self._counters[key] = self._counters.get(key, 0) + amount
+            return self._counters[key]
+
+    def observe(self, name: str, seconds: float) -> None:
+        if seconds < 0:
+            raise ValueError("metric duration cannot be negative")
+        key = self._normalize(name)
+        with self._lock:
+            self._timings.setdefault(key, []).append(float(seconds))
+
+    def snapshot(self) -> MetricSnapshot:
+        with self._lock:
+            timings = {
+                name: {
+                    "count": len(values),
+                    "total_seconds": sum(values),
+                    "max_seconds": max(values),
+                }
+                for name, values in self._timings.items()
+                if values
+            }
+            return MetricSnapshot(dict(self._counters), timings)
+
+    @staticmethod
+    def _normalize(name: str) -> str:
+        key = name.strip()
+        if not key:
+            raise ValueError("metric name cannot be empty")
+        return key
