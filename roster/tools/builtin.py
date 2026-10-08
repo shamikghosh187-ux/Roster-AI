@@ -27,15 +27,15 @@ class ToolExecutor:
 
     def _register_builtin_tools(self):
         self.registry.register(ToolSpec(Action.EXIT, "End the Roster session.", self._exit))
-        self.registry.register(ToolSpec(Action.CHAT, "Answer conversational questions.", self._chat))
+        self.registry.register(ToolSpec(Action.CHAT, "Answer conversational questions.", self._chat, False, True))
         self.registry.register(ToolSpec(Action.OPEN_APP, "Open a Windows application.", self._open_app, True))
-        self.registry.register(ToolSpec(Action.SEARCH, "Open a Google search.", self._search))
-        self.registry.register(ToolSpec(Action.YOUTUBE, "Play media on YouTube.", self._youtube))
+        self.registry.register(ToolSpec(Action.SEARCH, "Open a Google search.", self._search, False, True))
+        self.registry.register(ToolSpec(Action.YOUTUBE, "Play media on YouTube.", self._youtube, False, False))
         self.registry.register(ToolSpec(Action.WHATSAPP, "Send an explicit WhatsApp message.", self._whatsapp, True))
         self.registry.register(ToolSpec(Action.SCREEN_VISION, "Capture and analyze the screen.", self._screen_vision, True))
-        self.registry.register(ToolSpec(Action.LIST_FILES, "List a directory.", self._list_files))
-        self.registry.register(ToolSpec(Action.READ_FILE, "Read a text file.", self._read_file))
-        self.registry.register(ToolSpec(Action.FIND_IN_FILES, "Search text across files.", self._find_in_files))
+        self.registry.register(ToolSpec(Action.LIST_FILES, "List a directory.", self._list_files, False, True))
+        self.registry.register(ToolSpec(Action.READ_FILE, "Read a text file.", self._read_file, False, True))
+        self.registry.register(ToolSpec(Action.FIND_IN_FILES, "Search text across files.", self._find_in_files, False, True))
         self.registry.register(ToolSpec(Action.COMPUTER, "Perform a controlled desktop action.", self._computer, True))
 
     def execute(
@@ -80,6 +80,7 @@ class ToolExecutor:
                         description=active_spec.description,
                         input_schema={"type": "object"},
                         sensitive=active_spec.requires_confirmation,
+                        retry_safe=active_spec.retry_safe,
                         handler=invoke,
                     )
                 )
