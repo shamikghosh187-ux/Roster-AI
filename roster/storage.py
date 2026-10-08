@@ -44,6 +44,21 @@ class SQLiteMemoryStore:
                 CREATE INDEX IF NOT EXISTS idx_memory_category
                 ON long_term_memories(category)
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS recovery_experiences (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    goal TEXT NOT NULL,
+                    failure TEXT NOT NULL,
+                    strategy TEXT NOT NULL,
+                    success INTEGER NOT NULL,
+                    evidence TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_recovery_signature
+                ON recovery_experiences(goal, failure, strategy)
+            """)
             conn.commit()
 
     def add(self, role, content):
@@ -135,9 +150,36 @@ class SQLiteMemoryStore:
             conn.commit()
             return cursor.rowcount > 0
 
+    def record_recovery_experience(self, goal, failure, strategy, success, evidence=""):
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO recovery_experiences
+                    (goal, failure, strategy, success, evidence)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (str(goal)[:500], str(failure)[:500], str(strategy)[:80],
+                 1 if success else 0, str(evidence)[:1000]),
+            )
+            conn.commit()
+
+    def recovery_stats(self, goal, failure, strategy):
+        with self._connect() as conn:
+            return conn.execute(
+                """
+                SELECT
+                    COALESCE(SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END), 0)
+                FROM recovery_experiences
+                WHERE goal = ? AND failure = ? AND strategy = ?
+                """,
+                (str(goal)[:500], str(failure)[:500], str(strategy)[:80]),
+            ).fetchone()
+
     def clear_memories(self):
         with self._connect() as conn:
             conn.execute("DELETE FROM long_term_memories")
+            conn.execute("DELETE FROM recovery_experiences")
             conn.commit()
 
     def clear(self):

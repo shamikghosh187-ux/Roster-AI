@@ -17,6 +17,7 @@ def catalog_from_registry(registry):
             description=spec.description,
             input_schema={"type":"object"},
             sensitive=spec.requires_confirmation,
+            retry_safe=spec.retry_safe,
             handler=invoke,
         ))
     return catalog

@@ -14,6 +14,19 @@ from roster.security import PermissionGate
 _RESULT_RE = re.compile(r"\$RESULT:([^\s]+)")
 
 
+class WorkflowVerificationError(RuntimeError):
+    def __init__(self, task_name, status, evidence, execution):
+        super().__init__(f"workflow step '{task_name}' verification {status}: {evidence}")
+        self.task_name = task_name
+        self.status = status
+        self.evidence = evidence
+        self.execution = list(execution)
+
+
+class WorkflowPermissionDenied(RuntimeError):
+    pass
+
+
 class CognitiveWorkflowExecutor:
     def __init__(self, tools, permissions=None, verifier=None, max_tasks=8):
         if max_tasks < 1:
@@ -59,7 +72,16 @@ class CognitiveWorkflowExecutor:
             confirmed = False
             if self.permissions.requires_confirmation(action, self.tools.registry):
                 if not self.permissions.request(intent):
-                    return True, "I didn't perform that action.", execution
+                    execution.append({
+                        "task": task.name,
+                        "action": action.value,
+                        "argument": argument,
+                        "result": "permission denied",
+                        "verification": "denied",
+                    })
+                    raise WorkflowPermissionDenied(
+                        f"permission denied for workflow step '{task.name}'"
+                    )
                 confirmed = True
 
             token.raise_if_cancelled()
@@ -95,10 +117,12 @@ class CognitiveWorkflowExecutor:
             outputs[task.id] = result_text
             outputs[task.name] = result_text
 
-            if verification.failed:
-                raise RuntimeError(
-                    f"workflow step '{task.name}' failed verification: "
-                    f"{verification.evidence}"
+            if not verification.verified:
+                raise WorkflowVerificationError(
+                    task.name,
+                    verification.status,
+                    verification.evidence,
+                    execution,
                 )
 
             completed.add(task.id)

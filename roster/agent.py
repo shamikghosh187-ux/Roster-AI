@@ -30,6 +30,7 @@ class Agent:
             self.provider,
             CognitivePlanner(),
             max_replans=2,
+            memory=self.intelligent_memory,
         )
         self.cognitive_workflow = CognitiveWorkflowExecutor(
             self.tools,
@@ -39,70 +40,129 @@ class Agent:
         )
 
     def _try_cognitive_workflow(self, goal, cancellation):
-        """Let the provider produce and execute a validated multi-step workflow."""
+        """Run a bounded cognitive workflow with adaptive recovery on verification failures."""
         token = cancellation or CancellationToken()
-        try:
-            raw_steps = self.provider.workflow_plan(
-                goal,
-                self.memory.as_messages(),
-                tool_descriptions=self.tools.registry.descriptions(),
-            )
-        except Exception as planning_error:
+        raw_steps = None
+        history = []
+        max_attempts = self.cognitive_recovery.max_replans + 1
+
+        for attempt in range(max_attempts):
+            token.raise_if_cancelled()
+            if raw_steps is None:
+                try:
+                    raw_steps = self.provider.workflow_plan(
+                        goal,
+                        self.memory.as_messages(),
+                        tool_descriptions=self.tools.registry.descriptions(),
+                    )
+                except Exception as planning_error:
+                    self.trace.record(
+                        "cognitive_replan_requested",
+                        reason=type(planning_error).__name__,
+                    )
+                    graph = self.cognitive_recovery.replan(
+                        goal, history, planning_error, attempt=min(attempt, self.cognitive_recovery.max_replans - 1)
+                    )
+                    raw_steps = [
+                        {
+                            "name": spec.name,
+                            "input": spec.input,
+                            "depends_on": list(spec.depends_on),
+                            "priority": spec.priority,
+                            "metadata": dict(spec.metadata or {}),
+                        }
+                        for spec in graph.specs
+                    ]
+
+            if not isinstance(raw_steps, list) or len(raw_steps) <= 1:
+                return None
+
             self.trace.record(
-                "cognitive_replan_requested",
-                reason=type(planning_error).__name__,
+                "cognitive_workflow_planned",
+                steps=len(raw_steps),
+                attempt=attempt + 1,
             )
-            graph = self.cognitive_recovery.replan(
-                goal,
-                [],
-                planning_error,
-                attempt=0,
-            )
-            raw_steps = [
-                {
-                    "name": spec.name,
-                    "input": spec.input,
-                    "depends_on": list(spec.depends_on),
-                    "priority": spec.priority,
-                    "metadata": dict(spec.metadata or {}),
-                }
-                for spec in graph.specs
-            ]
-        if not isinstance(raw_steps, list) or len(raw_steps) <= 1:
-            return None
-        self.trace.record("cognitive_workflow_planned", steps=len(raw_steps))
-        running, result, execution = self.cognitive_workflow.execute(
-            raw_steps,
-            goal,
-            self.provider,
-            cancellation=token,
-        )
-        for item in execution:
-            self.trace.record(
-                "cognitive_task_finished",
-                task=item["task"],
-                action=item["action"],
-                verification=item["verification"],
-                result=item["result"][:500],
-            )
-            self.memory.add(
-                "assistant",
-                f"[cognitive:{item['action']}] {item['result'][:1000]}",
-            )
-        self.trace.record(
-            "cognitive_workflow_finished",
-            status="completed",
-            steps=len(execution),
-        )
-        if self.intelligent_memory:
-            self.intelligent_memory.record_experience(
-                goal,
-                str(result),
-                [item["action"] for item in execution],
-            )
-        self.memory.add("assistant", result)
-        self.state.move(AgentState.COMPLETED)
-        return running, result
+            try:
+                running, result, execution = self.cognitive_workflow.execute(
+                    raw_steps,
+                    goal,
+                    self.provider,
+                    cancellation=token,
+                )
+                history.extend(execution[-8:])
+                for item in execution:
+                    self.trace.record(
+                        "cognitive_task_finished",
+                        task=item["task"],
+                        action=item["action"],
+                        verification=item["verification"],
+                        result=item["result"][:500],
+                    )
+                    self.memory.add(
+                        "assistant",
+                        f"[cognitive:{item['action']}] {item['result'][:1000]}",
+                    )
+                self.trace.record(
+                    "cognitive_workflow_finished",
+                    status="completed",
+                    steps=len(execution),
+                    attempts=attempt + 1,
+                )
+                if self.intelligent_memory:
+                    self.intelligent_memory.record_experience(
+                        goal,
+                        str(result),
+                        [item["action"] for item in execution],
+                    )
+                self.memory.add("assistant", result)
+                self.state.move(AgentState.COMPLETED)
+                return running, result
+            except CancelledError:
+                raise
+            except Exception as failure:
+                partial = getattr(failure, "execution", [])
+                history.extend(partial[-8:])
+                if self.intelligent_memory:
+                    strategy = self.cognitive_recovery.strategy_selector.choose(
+                        goal, str(failure)[:500]
+                    ).strategy.value
+                    self.intelligent_memory.record_failure(
+                        goal,
+                        str(failure)[:500],
+                        [item.get("action", "") for item in partial[-6:]],
+                    )
+                    self.intelligent_memory.record_recovery_outcome(
+                        goal,
+                        str(failure)[:500],
+                        strategy,
+                        False,
+                        getattr(failure, "evidence", str(failure)),
+                    )
+                if attempt >= self.cognitive_recovery.max_replans:
+                    raise
+                self.trace.record(
+                    "cognitive_recovery",
+                    attempt=attempt + 1,
+                    failure=type(failure).__name__,
+                )
+                graph = self.cognitive_recovery.replan(
+                    goal,
+                    history,
+                    failure,
+                    attempt=attempt,
+                )
+                raw_steps = [
+                    {
+                        "name": spec.name,
+                        "input": spec.input,
+                        "depends_on": list(spec.depends_on),
+                        "priority": spec.priority,
+                        "metadata": dict(spec.metadata or {}),
+                    }
+                    for spec in graph.specs
+                ]
+
+        return None
 
     def handle(self, user_text, cancellation=None):
         token = cancellation or CancellationToken()
@@ -254,14 +314,37 @@ class Agent:
                     evidence=verification.evidence[:500],
                     step=step + 1,
                 )
-                if verification.failed and running:
-                    self.memory.add("assistant", f"[verification_failed:{intent.action.value}] {verification.evidence}")
+                if verification.failed or verification.unknown:
+                    status_label = verification.status
+                    self.memory.add(
+                        "assistant",
+                        f"[verification_{status_label}:{intent.action.value}] "
+                        f"{verification.evidence}",
+                    )
+                    if self.intelligent_memory:
+                        self.intelligent_memory.record_failure(
+                            goal,
+                            f"{intent.action.value}: {status_label}: "
+                            f"{verification.evidence[:500]}",
+                            [intent.action.value],
+                        )
                     self.state.move(AgentState.OBSERVING)
+                    if not running:
+                        self.state.move(AgentState.FAILED)
+                        self.trace.record(
+                            "request_finished",
+                            status="unverified",
+                            steps=len(execution_history),
+                        )
+                        return True, (
+                            "I performed the action, but I couldn't verify that it "
+                            "achieved the requested state."
+                        )
                     current_request = (
-                        "The last action executed but verification failed. "
-                        "Do not repeat it blindly. Diagnose the failure, choose "
-                        "a safe recovery action, or explain that the goal cannot "
-                        "be completed. "
+                        "The last action did not produce a verified success. "
+                        "Do not repeat it blindly. Diagnose the failure or unknown "
+                        "state, inspect the current state, choose a safe recovery "
+                        "action, or explain that the goal cannot be completed. "
                         f"Goal: {goal}. Latest evidence: {verification.evidence}"
                     )
                     continue

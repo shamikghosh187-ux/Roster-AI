@@ -9,6 +9,7 @@ class ToolContract:
     version:str="1.0"
     input_schema:dict[str,Any]=field(default_factory=dict)
     sensitive:bool=False
+    retry_safe:bool=False
     handler:Callable[...,Any]|None=None
 
     def __post_init__(self):

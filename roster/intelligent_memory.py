@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from hashlib import sha256
 
 
 _SECRET_PATTERNS = (
@@ -101,7 +102,7 @@ class IntelligentMemory:
         return 0
 
     def record_failure(self, goal, failure, recovery_actions=()):
-        """Store a compact failure pattern that can inform future planning."""
+        """Store a compact failure pattern without overwriting distinct failures."""
         if not goal or not failure:
             return False
         actions = ", ".join(str(action)[:80] for action in list(recovery_actions)[:6])
@@ -109,13 +110,26 @@ class IntelligentMemory:
             f"Goal: {str(goal)[:500]} | Failure: {str(failure)[:500]} "
             f"| Recovery: {actions}"
         )
+        signature = sha256(
+            f"{str(goal)[:500]}|{str(failure)[:500]}".encode("utf-8")
+        ).hexdigest()[:20]
         return self.remember(
             content,
             category="failure",
-            key=f"failure:{self._key('goal', str(goal))[:180]}",
+            key=f"failure:{signature}",
             confidence=0.7,
             importance=0.55,
         )
+
+    def record_recovery_outcome(self, goal, failure, strategy, success, evidence=""):
+        """Persist verified strategy outcomes; never persist secret-like evidence."""
+        if not goal or not failure or self._secret_like(str(evidence)):
+            return False
+        self.store.record_recovery_experience(
+            str(goal)[:500], str(failure)[:500], str(strategy)[:80],
+            bool(success), str(evidence)[:1000],
+        )
+        return True
 
     def record_experience(self, goal, outcome, actions):
         """Store a compact, low-priority summary of completed work."""
@@ -126,7 +140,9 @@ class IntelligentMemory:
         return self.remember(
             content,
             category="experience",
-            key=f"experience:{self._key('goal', goal)[:180]}",
+            key="experience:" + sha256(
+                f"{goal[:500]}|{outcome[:500]}|{action_text}".encode("utf-8")
+            ).hexdigest()[:20],
             confidence=0.75,
             importance=0.4,
         )

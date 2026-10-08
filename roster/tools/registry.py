@@ -8,6 +8,7 @@ class ToolSpec:
     description: str
     handler: Callable[[Intent, str, object | None], str]
     requires_confirmation: bool = False
+    retry_safe: bool = False
 
 class ToolRegistry:
     def __init__(self):
