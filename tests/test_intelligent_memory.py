@@ -48,3 +48,18 @@ def test_explicit_remember_updates_existing_key(tmp_path):
     rows = store.all_memories()
     assert len(rows) == 1
     assert rows[0][3] == "prefers concise answers"
+
+
+def test_explicit_forget_removes_memory(tmp_path):
+    store, memory = make_memory(tmp_path)
+    memory.remember("prefers concise answers", category="preference", key="preference:style", importance=0.8)
+    assert memory.learn_from_user("forget concise answers") == 1
+    assert store.all_memories() == []
+
+
+def test_experience_is_low_priority_and_recallable(tmp_path):
+    store, memory = make_memory(tmp_path)
+    memory.record_experience("open the study notes", "completed", ["open_app", "read_file", "chat"])
+    recalled = memory.recall("study notes")
+    assert recalled
+    assert recalled[0].category == "experience"
