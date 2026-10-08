@@ -8,7 +8,10 @@ import webbrowser
 from pathlib import Path
 
 from roster.cancel import CancelledError
+from roster.execution_policy_resolver import ResolvedExecutionPolicy
 from roster.models import Action, Intent
+from roster.production_tool_executor import ProductionToolExecutor
+from roster.registry_adapter import catalog_from_registry
 from roster.tools.registry import ToolRegistry, ToolSpec
 
 
@@ -16,6 +19,10 @@ class ToolExecutor:
     def __init__(self):
         self.registry = ToolRegistry()
         self._register_builtin_tools()
+        self._production = ProductionToolExecutor(
+            catalog_from_registry(self.registry),
+            ResolvedExecutionPolicy(),
+        )
 
     def _register_builtin_tools(self):
         self.registry.register(ToolSpec(Action.EXIT, "End the Roster session.", self._exit))
@@ -30,17 +37,34 @@ class ToolExecutor:
         self.registry.register(ToolSpec(Action.FIND_IN_FILES, "Search text across files.", self._find_in_files))
         self.registry.register(ToolSpec(Action.COMPUTER, "Perform a controlled desktop action.", self._computer, True))
 
-    def execute(self, intent, user_text, vision_provider=None, cancellation=None):
+    def execute(
+        self,
+        intent,
+        user_text,
+        vision_provider=None,
+        cancellation=None,
+        confirmed=False,
+    ):
         spec = self.registry.get(intent.action)
         if not spec:
             return True, "I couldn't determine the requested action."
         if cancellation is not None:
             cancellation.raise_if_cancelled()
         try:
-            result = spec.handler(intent, user_text, vision_provider)
-            if cancellation is not None:
-                cancellation.raise_if_cancelled()
-            return intent.action is not Action.EXIT, result
+            result = self._production.execute(
+                intent.action.value,
+                intent.action.value,
+                {"argument": intent.argument},
+                confirmed=confirmed,
+                cancellation=cancellation,
+                context={
+                    "raw_input": user_text,
+                    "tool_context": vision_provider,
+                },
+            )
+            if not result.ok:
+                return True, f"The {intent.action.value} tool failed: {result.error}"
+            return intent.action is not Action.EXIT, result.value
         except CancelledError:
             raise
         except Exception as exc:
