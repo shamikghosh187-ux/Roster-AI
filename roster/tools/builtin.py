@@ -1,5 +1,6 @@
 import base64
 import os
+import shutil
 import subprocess
 import tempfile
 import urllib.parse
@@ -57,8 +58,15 @@ class ToolExecutor:
     def _open_app(intent, user_text, provider):
         if not intent.argument:
             return "Which app should I open?"
-        subprocess.Popen(["cmd", "/c", "start", "", intent.argument], shell=False)
-        return f"Opening {intent.argument}."
+        target = intent.argument.strip()
+        executable = shutil.which(target)
+        if executable:
+            subprocess.Popen([executable], shell=False)
+        elif os.name == "nt" and hasattr(os, "startfile"):
+            os.startfile(target)
+        else:
+            raise OSError("application target could not be resolved safely")
+        return f"Opening {target}."
 
     @staticmethod
     def _search(intent, user_text, provider):
