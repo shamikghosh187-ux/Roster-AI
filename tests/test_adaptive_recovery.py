@@ -25,7 +25,7 @@ def test_recovery_replans_with_failure_context():
         "verification failed",
     )
 
-    assert graph[0][0]["name"] == "recover"
+    assert graph[1][0]["name"] == "recover"
     assert "verification failed" in provider.prompts[0]
     assert "find the report" in provider.prompts[0]
 
