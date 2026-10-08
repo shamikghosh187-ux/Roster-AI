@@ -4,11 +4,12 @@ from roster.security import PermissionGate
 from roster.trace import ExecutionTrace
 from roster.state import AgentState, StateMachine
 from roster.cancel import CancellationToken, CancelledError
+from roster.execution_verifier import ExecutionVerifier
 import inspect
 
 
 class Agent:
-    def __init__(self, provider, tools, memory=None, permissions=None, max_steps=5, trace=None):
+    def __init__(self, provider, tools, memory=None, permissions=None, max_steps=5, trace=None, verifier=None):
         if max_steps < 1:
             raise ValueError("max_steps must be positive")
         self.provider = provider
@@ -17,6 +18,7 @@ class Agent:
         self.permissions = permissions or PermissionGate()
         self.max_steps = max_steps
         self.trace = trace or ExecutionTrace()
+        self.verifier = verifier or ExecutionVerifier()
         self.state = StateMachine()
 
     def handle(self, user_text, cancellation=None):
@@ -127,6 +129,26 @@ class Agent:
                     result=result_text[:500],
                     step=step + 1,
                 )
+
+                verification = self.verifier.verify(intent, result, goal=goal, provider=self.provider)
+                self.trace.record(
+                    "verification",
+                    action=intent.action.value,
+                    status=verification.status,
+                    evidence=verification.evidence[:500],
+                    step=step + 1,
+                )
+                if verification.failed and running:
+                    self.memory.add("assistant", f"[verification_failed:{intent.action.value}] {verification.evidence}")
+                    self.state.move(AgentState.OBSERVING)
+                    current_request = (
+                        "The last action executed but verification failed. "
+                        "Do not repeat it blindly. Diagnose the failure, choose "
+                        "a safe recovery action, or explain that the goal cannot "
+                        "be completed. "
+                        f"Goal: {goal}. Latest evidence: {verification.evidence}"
+                    )
+                    continue
 
                 if intent.action in {Action.CHAT, Action.EXIT}:
                     self.memory.add("assistant", result)
