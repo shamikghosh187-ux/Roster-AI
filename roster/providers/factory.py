@@ -47,8 +47,10 @@ def create_router():
     for name in unique:
         try:
             providers.append(create_provider(name))
-        except RuntimeError as exc:
-            errors.append(f"{name}: {exc}")
+        except Exception as exc:
+            # A broken SDK/client configuration for one provider must not
+            # prevent configured fallback providers from starting.
+            errors.append(f"{name}: {type(exc).__name__}: {exc}")
 
     if not providers:
         detail = "; ".join(errors) or "no providers configured"
