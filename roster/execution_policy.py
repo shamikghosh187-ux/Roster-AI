@@ -8,6 +8,16 @@ class ExecutionPolicy:
     confirmation: ConfirmationMode=ConfirmationMode.SMART
     max_parallel: int=4
     timeout_seconds: float=60.0
+    max_retries: int=0
     def __post_init__(self):
         if self.max_parallel<1: raise ValueError("max_parallel must be positive")
         if self.timeout_seconds<=0: raise ValueError("timeout_seconds must be positive")
+        if self.max_retries<0: raise ValueError("max_retries cannot be negative")
+
+    @property
+    def confirmation_required(self):
+        return self.confirmation is not ConfirmationMode.NEVER
+
+    @property
+    def max_parallel_tasks(self):
+        return self.max_parallel
