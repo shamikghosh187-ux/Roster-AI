@@ -117,7 +117,14 @@ class CognitiveWorkflowExecutor:
             outputs[task.id] = result_text
             outputs[task.name] = result_text
 
-            if not verification.verified:
+            # Keep compatibility with custom verifiers that expose only status.
+            # Success remains strict: only an explicit "verified" status passes.
+            verified = getattr(
+                verification,
+                "verified",
+                str(getattr(verification, "status", "")).lower() == "verified",
+            )
+            if not verified:
                 raise WorkflowVerificationError(
                     task.name,
                     verification.status,
