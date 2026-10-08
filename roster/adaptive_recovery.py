@@ -10,13 +10,13 @@ class AdaptiveRecovery:
         self.planner = planner
         self.max_replans = max_replans
 
-    def replan(self, goal, history, failure):
-        if len(history) and history[-1].get("replans", 0) >= self.max_replans:
+    def replan(self, goal, history, failure, attempt=0):
+        if attempt >= self.max_replans:
             raise RuntimeError("adaptive recovery budget exhausted")
 
         context = {
             "goal": goal,
-            "completed": history,
+            "completed": history[-8:],
             "failure": str(failure)[:2000],
             "instruction": (
                 "Create a replacement workflow for the remaining goal. "
@@ -29,5 +29,4 @@ class AdaptiveRecovery:
             "Recover this task using the supplied execution context:\n"
             + str(context)
         )
-        graph = self.planner.from_specs(raw)
-        return graph
+        return self.planner.from_specs(raw)
