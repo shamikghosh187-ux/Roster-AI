@@ -100,6 +100,23 @@ class IntelligentMemory:
                 ))
         return 0
 
+    def record_failure(self, goal, failure, recovery_actions=()):
+        """Store a compact failure pattern that can inform future planning."""
+        if not goal or not failure:
+            return False
+        actions = ", ".join(str(action)[:80] for action in list(recovery_actions)[:6])
+        content = (
+            f"Goal: {str(goal)[:500]} | Failure: {str(failure)[:500]} "
+            f"| Recovery: {actions}"
+        )
+        return self.remember(
+            content,
+            category="failure",
+            key=f"failure:{self._key('goal', str(goal))[:180]}",
+            confidence=0.7,
+            importance=0.55,
+        )
+
     def record_experience(self, goal, outcome, actions):
         """Store a compact, low-priority summary of completed work."""
         if not goal or not outcome:
