@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass,field
 from typing import Any,Callable
 
@@ -14,4 +15,4 @@ class ToolContract:
         if not isinstance(self.name,str) or not self.name.strip(): raise ValueError("tool name cannot be empty")
         if not isinstance(self.version,str) or not self.version.strip(): raise ValueError("tool version cannot be empty")
         if not isinstance(self.input_schema,dict): raise TypeError("input_schema must be a dictionary")
-        object.__setattr__(self,"input_schema",dict(self.input_schema))
+        object.__setattr__(self,"input_schema",deepcopy(self.input_schema))
