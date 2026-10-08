@@ -7,6 +7,8 @@ from roster.cancel import CancellationToken, CancelledError
 
 class Agent:
     def __init__(self, provider, tools, memory=None, permissions=None, max_steps=5, trace=None):
+        if max_steps < 1:
+            raise ValueError("max_steps must be positive")
         self.provider=provider
         self.tools=tools
         self.memory=memory or ConversationMemory()
