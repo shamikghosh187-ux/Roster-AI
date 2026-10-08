@@ -9,6 +9,7 @@ from pathlib import Path
 from roster.models import Action, Intent
 from roster.tools.registry import ToolRegistry, ToolSpec
 
+
 class ToolExecutor:
     def __init__(self):
         self.registry = ToolRegistry()
@@ -145,12 +146,15 @@ class ToolExecutor:
             if not path.is_file() or path.stat().st_size > 2_000_000:
                 continue
             try:
-                for line_no, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+                safe_path = self._safe_path(path)
+                for line_no, line in enumerate(
+                    safe_path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1
+                ):
                     if needle.lower() in line.lower():
-                        matches.append(f"{path}:{line_no}: {line.strip()[:300]}")
+                        matches.append(f"{safe_path}:{line_no}: {line.strip()[:300]}")
                         if len(matches) >= 50:
                             break
-            except OSError:
+            except (OSError, PermissionError):
                 continue
         return "No matches found." if not matches else "Matches:\n" + "\n".join(matches)
 
