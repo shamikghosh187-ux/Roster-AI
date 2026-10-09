@@ -24,3 +24,13 @@ def test_verifier_does_not_claim_unknown_desktop_state_without_vision():
         "Opening notepad.",
     )
     assert result.status == "unknown"
+
+
+def test_verifier_exposes_unknown_state_as_boolean():
+    result = ExecutionVerifier().verify(
+        Intent(Action.OPEN_APP, "notepad"),
+        "Opening notepad.",
+    )
+    assert result.unknown
+    assert not result.failed
+    assert not result.verified

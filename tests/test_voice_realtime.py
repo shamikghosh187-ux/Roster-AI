@@ -26,3 +26,37 @@ def test_streaming_adapter_requires_provider():
     try: StreamingSpeechSession().transcribe([],lambda d:None)
     except RuntimeError: pass
     else: assert False
+
+
+def test_vad_handles_multichannel_array_like_samples():
+    from roster.voice_vad import VoiceActivityDetector
+    samples = [[0.1], [-0.1], [0.1], [-0.1]]
+    assert VoiceActivityDetector.rms(samples) > 0.09
+
+
+def test_realtime_session_reports_backend_errors():
+    errors = []
+    class B:
+        def read(self, _):
+            raise RuntimeError("device failure")
+    session = RealtimeAudioSession(backend=B())
+    thread = session.start(lambda _: None, on_error=errors.append)
+    thread.join(timeout=1)
+    assert errors and isinstance(errors[0], RuntimeError)
+
+
+def test_realtime_session_rejects_duplicate_start():
+    import time
+    class B:
+        def read(self, _):
+            time.sleep(0.05)
+            return [0.0]
+    session = RealtimeAudioSession(backend=B())
+    session.start(lambda _: None)
+    try:
+        session.start(lambda _: None)
+    except RuntimeError:
+        pass
+    else:
+        assert False
+    session.stop()
