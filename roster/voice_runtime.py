@@ -135,7 +135,7 @@ class VoiceRuntime:
             if decision.started:
                 frames.extend(pre_roll)
                 pre_roll.clear()
-            elif decision.speech and frames:
+            elif decision.speech and frames and decision.rms > self.settings.speech_end_threshold:
                 frames.append(frame)
             if on_frame:
                 on_frame(decision)
