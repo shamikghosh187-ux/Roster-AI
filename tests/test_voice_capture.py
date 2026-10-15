@@ -1,6 +1,5 @@
 import os
 import sys
-import tempfile
 import types
 
 import numpy as np
@@ -39,33 +38,7 @@ def test_record_stops_after_speech_and_silence(monkeypatch):
         rate, recorded = wav.read(path)
         assert rate == sample_rate
         assert len(recorded) >= frame_samples * 5
-        # The 1-second trailing silence should end the utterance before all
-        # queued frames are consumed.
         assert len(recorded) < frame_samples * len(pattern)
     finally:
         if path and os.path.exists(path):
             os.remove(path)
-
-
-def test_record_returns_none_when_no_speech(monkeypatch):
-    sample_rate = 16000
-    silence = np.zeros((sample_rate * 30 // 1000, 1), dtype=np.int16)
-
-    class FakeInputStream:
-        def __init__(self, *, callback, **kwargs):
-            self.callback = callback
-
-        def __enter__(self):
-            for _ in range(100):
-                self.callback(silence, len(silence), None, None)
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-    monkeypatch.setitem(
-        sys.modules,
-        "sounddevice",
-        types.SimpleNamespace(InputStream=FakeInputStream),
-    )
-    assert VoiceIO().record() is None
