@@ -31,8 +31,10 @@ def test_voice_io_applies_configured_tts_settings(monkeypatch):
         "pyttsx3",
         types.SimpleNamespace(init=lambda: fake),
     )
-    monkeypatch.setattr(settings, "tts_rate", 172)
-    monkeypatch.setattr(settings, "tts_volume", 0.65)
+    monkeypatch.setattr(
+        "roster.audio.settings",
+        types.SimpleNamespace(tts_rate=172, tts_volume=0.65),
+    )
 
     voice = VoiceIO()
     assert voice._get_engine() is fake
