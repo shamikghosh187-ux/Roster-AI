@@ -1,13 +1,30 @@
 """Validated, non-secret configuration reporting."""
+import os
 from dataclasses import dataclass
 from typing import Mapping
 
 from roster.config import settings
 
 
-SUPPORTED_PROVIDERS = frozenset({"groq", "gemini", "xai", "claude"})
+SUPPORTED_PROVIDERS = frozenset({
+    "groq", "gemini", "xai", "claude", "openrouter", "deepseek",
+    "mistral", "together", "fireworks", "cerebras", "sambanova",
+    "perplexity", "nvidia",
+})
 INPUT_MODES = frozenset({"auto", "voice", "text"})
 WAKE_MODES = frozenset({"auto", "on", "off", "disabled", "false", "0"})
+
+_PROVIDER_KEYS = {
+    "openrouter": "OPENROUTER_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+    "together": "TOGETHER_API_KEY",
+    "fireworks": "FIREWORKS_API_KEY",
+    "cerebras": "CEREBRAS_API_KEY",
+    "sambanova": "SAMBANOVA_API_KEY",
+    "perplexity": "PERPLEXITY_API_KEY",
+    "nvidia": "NVIDIA_API_KEY",
+}
 
 
 @dataclass(frozen=True)
@@ -36,7 +53,7 @@ def validate_config(config=settings) -> tuple[ConfigIssue, ...]:
     if not isinstance(config.memory_db_path, str) or not config.memory_db_path.strip():
         issues.append(ConfigIssue("memory_db_path", "must not be empty"))
     for field in ("chat_model", "vision_model", "whisper_model", "gemini_model", "xai_model", "claude_model"):
-        value=getattr(config, field, "")
+        value = getattr(config, field, "")
         if not isinstance(value, str) or not value.strip():
             issues.append(ConfigIssue(field, "model name cannot be empty"))
 
@@ -45,6 +62,16 @@ def validate_config(config=settings) -> tuple[ConfigIssue, ...]:
 
 def public_config(config=settings) -> Mapping[str, object]:
     """Expose operational settings without leaking API credentials."""
+    credentials = {
+        "groq": bool(config.groq_api_key),
+        "gemini": bool(config.gemini_api_key),
+        "xai": bool(config.xai_api_key),
+        "anthropic": bool(config.anthropic_api_key),
+    }
+    credentials.update({
+        provider: bool(os.getenv(env_name, "").strip())
+        for provider, env_name in _PROVIDER_KEYS.items()
+    })
     return {
         "provider": config.provider,
         "provider_input": config.provider_input,
@@ -55,10 +82,5 @@ def public_config(config=settings) -> Mapping[str, object]:
         "whisper_model": config.whisper_model,
         "provider_max_tokens": config.provider_max_tokens,
         "memory_db_path": config.memory_db_path,
-        "credentials": {
-            "groq": bool(config.groq_api_key),
-            "gemini": bool(config.gemini_api_key),
-            "xai": bool(config.xai_api_key),
-            "anthropic": bool(config.anthropic_api_key),
-        },
+        "credentials": credentials,
     }
