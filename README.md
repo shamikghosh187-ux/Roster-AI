@@ -78,6 +78,7 @@ The behavior is controlled by:
 - `ROSTER_TTS_RATE=185` — speech rate for the built-in voice.
 - `ROSTER_TTS_VOLUME=1.0` — built-in speech volume from 0.0 to 1.0.
 - `ROSTER_NOISE_GATE=400` — input amplitude threshold for speech detection.
+- `ROSTER_VOICE_RUNTIME=1` — opt into the newer bounded voice runtime, normalized audio frames, and interruptible TTS lifecycle. Leave unset to use the existing voice loop.
 
 CLI examples:
 
