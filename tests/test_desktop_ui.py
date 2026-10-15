@@ -38,6 +38,7 @@ def test_desktop_pages_and_busy_provider_selection(monkeypatch, tmp_path, qt_app
 
         window.provider_box.setCurrentText("gemini")
         assert window._selected_provider == "gemini"
+        assert window.agent.cognitive_recovery.provider is window.agent.provider
 
         window.busy = True
         window.provider_box.setCurrentText("groq")
