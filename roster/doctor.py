@@ -10,6 +10,15 @@ _PROVIDER_CREDENTIALS = {
     "gemini": "gemini",
     "xai": "xai",
     "claude": "anthropic",
+    "openrouter": "openrouter",
+    "deepseek": "deepseek",
+    "mistral": "mistral",
+    "together": "together",
+    "fireworks": "fireworks",
+    "cerebras": "cerebras",
+    "sambanova": "sambanova",
+    "perplexity": "perplexity",
+    "nvidia": "nvidia",
 }
 
 
