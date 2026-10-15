@@ -1,7 +1,13 @@
 from openai import OpenAI
 
 from roster.config import settings
-from roster.providers.base import Provider, build_messages, parse_intent
+from roster.providers.base import (
+    Provider,
+    WORKFLOW_PROMPT,
+    build_messages,
+    parse_intent,
+    parse_workflow,
+)
 
 
 class XAIProvider(Provider):
@@ -27,6 +33,16 @@ class XAIProvider(Provider):
         return parse_intent(
             self._complete(build_messages(user_text, history, tool_descriptions))
         )
+
+    def workflow_plan(self, user_text, history=None, tool_descriptions=""):
+        messages = [
+            {"role": "system", "content": WORKFLOW_PROMPT},
+            {"role": "system", "content": f"Available tools:\n{tool_descriptions}"},
+        ]
+        if history:
+            messages.extend(history[-12:])
+        messages.append({"role": "user", "content": user_text})
+        return parse_workflow(self._complete(messages))
 
     def chat(self, messages):
         return self._complete(messages)
