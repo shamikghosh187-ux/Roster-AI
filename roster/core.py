@@ -102,7 +102,7 @@ class Roster:
                     pass
 
     def run_once(self):
-        if self.voice_runtime is not None and settings.provider_input in {"auto", "voice"}:
+        if self.voice_runtime is not None and settings.provider_input in {"auto", "voice"} and settings.groq_api_key:
             return self._run_runtime_voice_once()
         audio_path = None
         try:
