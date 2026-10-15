@@ -61,7 +61,7 @@ Roster includes an optional Qt desktop workspace with:
 
 - Conversation view with background execution, provider switching, trace inspection, and cancellation.
 - **Memory** browser for reviewing and deleting saved long-term memories.
-- **Tools** catalog showing each registered tool's description, confirmation requirement, and retry-safety flag.
+- **Tools** catalog showing each registered tool's description, confirmation requirement, and retry-safety flag, with per-session enable/disable checkboxes. Disabled tools are blocked by the runtime, not just hidden in the UI.
 - **Tasks** view with runtime counters and the recent execution trace.
 - **Diagnostics** view showing dependency/configuration checks and provider credential presence without exposing credential values.
 - GUI-thread permission dialogs for sensitive actions.
