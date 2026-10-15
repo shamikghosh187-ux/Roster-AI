@@ -25,3 +25,16 @@ def test_config_rejects_empty_runtime_paths_and_models():
     cfg=replace(settings,memory_db_path=" ",chat_model="",vision_model="ok",whisper_model="ok")
     fields={issue.field for issue in validate_config(cfg)}
     assert {"memory_db_path","chat_model"} <= fields
+
+
+def test_empty_provider_model_names_are_reported():
+    from dataclasses import replace
+
+    cfg = replace(
+        settings,
+        gemini_model=" ",
+        xai_model="",
+        claude_model=" ",
+    )
+    fields = {issue.field for issue in validate_config(cfg)}
+    assert {"gemini_model", "xai_model", "claude_model"} <= fields
