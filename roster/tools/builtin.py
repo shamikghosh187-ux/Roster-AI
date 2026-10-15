@@ -21,6 +21,7 @@ from roster.tools.registry import ToolRegistry, ToolSpec
 class ToolExecutor:
     def __init__(self):
         self.registry = ToolRegistry()
+        self.disabled_tools: set[str] = set()
         self._register_builtin_tools()
         self._production = ProductionToolExecutor(
             catalog_from_registry(self.registry),
@@ -41,6 +42,18 @@ class ToolExecutor:
         self.registry.register(ToolSpec(Action.COMPUTER, "Control the desktop with allow-listed operations: move x,y; click x,y; double_click x,y; right_click x,y; drag x1,y1 to x2,y2; type text; press key; hotkey key1+key2; scroll amount.", self._computer, True))
         self.registry.register(ToolSpec(Action.DESKTOP_STATE, "Observe the current desktop and return a typed world-model snapshot.", self._desktop_state, True, True))
 
+    def is_tool_enabled(self, action):
+        name = action.value if hasattr(action, "value") else str(action)
+        return name.strip().lower() not in self.disabled_tools
+
+    def set_tool_enabled(self, action, enabled):
+        name = action.value if hasattr(action, "value") else str(action)
+        key = name.strip().lower()
+        if enabled:
+            self.disabled_tools.discard(key)
+        else:
+            self.disabled_tools.add(key)
+
     def execute(
         self,
         intent,
@@ -52,6 +65,8 @@ class ToolExecutor:
         spec = self.registry.get(intent.action)
         if not spec:
             return True, "I couldn't determine the requested action."
+        if not self.is_tool_enabled(intent.action):
+            return True, f"The {intent.action.value} tool is disabled in the Tools workspace."
         if cancellation is not None:
             cancellation.raise_if_cancelled()
         try:

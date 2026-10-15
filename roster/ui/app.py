@@ -227,6 +227,8 @@ class MainWindow(QMainWindow):
         refresh.clicked.connect(self.refresh_tools)
         layout.addWidget(refresh, 0, Qt.AlignLeft)
         self.tools_list = QListWidget()
+        self.tools_list.setToolTip("Uncheck a tool to disable it for this session. Sensitive-action confirmations remain enforced.")
+        self.tools_list.itemChanged.connect(self._tool_item_changed)
         layout.addWidget(self.tools_list, 1)
         self._register_page("Tools", page)
 
@@ -486,20 +488,39 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.warning(self, "Delete failed", str(exc))
 
+    def _tool_item_changed(self, item):
+        if not self.tools:
+            return
+        action_name = item.data(Qt.UserRole)
+        if not action_name:
+            return
+        enabled = item.checkState() == Qt.Checked
+        self.tools.set_tool_enabled(action_name, enabled)
+        self.statusBar().showMessage(
+            f"{action_name} {'enabled' if enabled else 'disabled'} for this session."
+        )
+
     def refresh_tools(self):
         if not hasattr(self, "tools_list"):
             return
+        self.tools_list.blockSignals(True)
         self.tools_list.clear()
         if not self.tools:
             self.tools_list.addItem("Tool registry unavailable. Check Diagnostics.")
+            self.tools_list.blockSignals(False)
             return
         for spec in self.tools.registry.all():
+            enabled = self.tools.is_tool_enabled(spec.action)
             security = "CONFIRMATION REQUIRED" if spec.requires_confirmation else "No confirmation flag"
             retry = "Retry-safe" if spec.retry_safe else "Not marked retry-safe"
             item = QListWidgetItem(
-                f"{spec.action.value}  ·  {security}\n{spec.description}\n{retry}"
+                f"{spec.action.value}  ·  {'ENABLED' if enabled else 'DISABLED'}  ·  {security}\n{spec.description}\n{retry}"
             )
+            item.setData(Qt.UserRole, spec.action.value)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if enabled else Qt.Unchecked)
             self.tools_list.addItem(item)
+        self.tools_list.blockSignals(False)
 
     def refresh_tasks(self):
         if not hasattr(self, "tasks_summary"):
