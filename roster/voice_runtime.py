@@ -28,6 +28,7 @@ class VoiceRuntime:
         self.sleep = sleep
         self._stop = threading.Event()
         self._speech_lock = threading.RLock()
+        self._speak_lock = threading.Lock()
         self._events_lock = threading.Lock()
         self._speech_done = threading.Event()
         self._speech_done.set()
@@ -77,8 +78,6 @@ class VoiceRuntime:
         if not isinstance(text, str) or not text.strip():
             return False
         token = cancellation or CancellationToken()
-        self.stop_speaking()
-        self._speech_done.clear()
 
         def run():
             try:
@@ -97,8 +96,17 @@ class VoiceRuntime:
             finally:
                 self._speech_done.set()
 
-        self._speech_thread = threading.Thread(target=run, name="roster-tts", daemon=True)
-        self._speech_thread.start()
+        # pyttsx3 engines are not safe to run from overlapping worker threads.
+        # Request cancellation of the previous utterance, then refuse to start
+        # another if its worker has not actually exited yet.
+        with self._speak_lock:
+            self.stop_speaking()
+            if not self.wait_for_speech(timeout=1.0):
+                self._emit("speech_busy")
+                return False
+            self._speech_done.clear()
+            self._speech_thread = threading.Thread(target=run, name="roster-tts", daemon=True)
+            self._speech_thread.start()
         return True
 
     def apply_tts_settings(self):
