@@ -72,7 +72,8 @@ class SoundDeviceFrameBackend:
         try:
             return self._queue.get(timeout=0.25)
         except queue.Empty:
-            return None
+            # Brief callback gaps count as silence, not end-of-stream.
+            return [0.0] * frame_samples
 
     def close(self):
         with self._lock:
