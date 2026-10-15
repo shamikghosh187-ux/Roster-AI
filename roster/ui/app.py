@@ -159,6 +159,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(root)
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Ready")
+        self._selected_provider = self.provider_box.currentText()
         self.provider_box.currentTextChanged.connect(self._provider_changed)
 
     def _register_page(self, name, widget):
@@ -388,17 +389,22 @@ class MainWindow(QMainWindow):
         self.chat.scrollToBottom()
 
     def _provider_changed(self, name):
+        previous = getattr(self, "_selected_provider", "auto")
         if self.busy:
             self.provider_box.blockSignals(True)
-            self.provider_box.setCurrentText("auto")
+            self.provider_box.setCurrentText(previous)
             self.provider_box.blockSignals(False)
             self.statusBar().showMessage("Finish the current task before changing providers.")
             return
         if not self.agent:
+            self.provider_box.blockSignals(True)
+            self.provider_box.setCurrentText(previous)
+            self.provider_box.blockSignals(False)
             self.statusBar().showMessage("Configure a provider and restart Roster.")
             return
         try:
             self.agent.provider = create_router() if name == "auto" else create_provider(name)
+            self._selected_provider = name
             self.model.setText(settings.chat_model if name == "auto" else f"Provider: {name}")
             self.statusBar().showMessage(
                 "Automatic provider routing enabled." if name == "auto"
@@ -407,15 +413,9 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.warning(self, "Provider switch failed", str(exc))
             self.provider_box.blockSignals(True)
-            self.provider_box.setCurrentText("auto")
+            self.provider_box.setCurrentText(previous)
             self.provider_box.blockSignals(False)
-            try:
-                self.agent.provider = create_router()
-                self.model.setText(settings.chat_model)
-            except Exception as fallback_exc:
-                self.agent = None
-                self.status.setText("● Needs setup")
-                self.statusBar().showMessage(f"Provider unavailable: {fallback_exc}")
+            self.statusBar().showMessage(f"Provider switch failed; kept {previous}.")
 
     def refresh_memory(self):
         if not hasattr(self, "memory_list"):
