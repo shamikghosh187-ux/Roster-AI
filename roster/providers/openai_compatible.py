@@ -3,7 +3,6 @@
 These adapters deliberately implement text planning/chat/workflow planning only.
 Speech transcription and vision remain capability-specific and are not claimed here.
 """
-import json
 import os
 
 from openai import OpenAI
@@ -50,7 +49,7 @@ class OpenAICompatibleProvider(Provider):
     def workflow_plan(self, user_text, history=None, tool_descriptions=""):
         messages = [
             {"role": "system", "content": WORKFLOW_PROMPT},
-            {"role": "system", "content": f"Available tools:\\n{tool_descriptions}"},
+            {"role": "system", "content": f"Available tools:\n{tool_descriptions}"},
         ]
         if history:
             messages.extend(history[-12:])
@@ -59,7 +58,7 @@ class OpenAICompatibleProvider(Provider):
         # Some compatible endpoints wrap JSON in Markdown fences despite the
         # instruction; remove only a simple surrounding fence before parsing.
         if raw.startswith("```"):
-            raw = raw.split("\\n", 1)[-1]
+            raw = raw.split("\n", 1)[-1]
             if raw.endswith("```"):
                 raw = raw[:-3].strip()
         return parse_workflow(raw)
