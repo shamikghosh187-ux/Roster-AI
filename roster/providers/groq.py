@@ -1,4 +1,5 @@
 import json
+import os
 
 from groq import Groq
 
@@ -17,9 +18,12 @@ class GroqProvider(Provider):
     name = "groq"
 
     def __init__(self):
-        if not settings.groq_api_key:
+        # Read the credential at construction time so runtime environment
+        # changes are respected and tests can reliably isolate provider config.
+        api_key = os.getenv("GROQ_API_KEY", "").strip()
+        if not api_key:
             raise RuntimeError("GROQ_API_KEY is not configured.")
-        self.client = Groq(api_key=settings.groq_api_key)
+        self.client = Groq(api_key=api_key)
 
     def transcribe(self, audio_path):
         with open(audio_path, "rb") as audio:

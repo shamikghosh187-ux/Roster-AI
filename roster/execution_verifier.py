@@ -20,6 +20,10 @@ class VerificationResult:
     def failed(self) -> bool:
         return self.status == "failed"
 
+    @property
+    def unknown(self) -> bool:
+        return self.status == "unknown"
+
 
 class ExecutionVerifier:
     """Verify completed tool calls without pretending execution implies success."""
