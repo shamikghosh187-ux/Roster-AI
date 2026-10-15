@@ -403,7 +403,12 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Configure a provider and restart Roster.")
             return
         try:
-            self.agent.provider = create_router() if name == "auto" else create_provider(name)
+            selected_provider = create_router() if name == "auto" else create_provider(name)
+            self.agent.provider = selected_provider
+            # Adaptive recovery caches its provider separately from Agent.
+            # Keep both references aligned after a UI provider switch.
+            if getattr(self.agent, "cognitive_recovery", None) is not None:
+                self.agent.cognitive_recovery.provider = selected_provider
             self._selected_provider = name
             self.model.setText(settings.chat_model if name == "auto" else f"Provider: {name}")
             self.statusBar().showMessage(
