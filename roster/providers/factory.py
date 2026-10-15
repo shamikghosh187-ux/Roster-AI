@@ -3,6 +3,17 @@ import os
 from roster.providers.claude import ClaudeProvider
 from roster.providers.gemini import GeminiProvider
 from roster.providers.groq import GroqProvider
+from roster.providers.openai_compatible import (
+    CerebrasProvider,
+    DeepSeekProvider,
+    FireworksProvider,
+    MistralProvider,
+    NvidiaProvider,
+    OpenRouterProvider,
+    PerplexityProvider,
+    SambaNovaProvider,
+    TogetherProvider,
+)
 from roster.providers.xai import XAIProvider
 
 
@@ -11,6 +22,15 @@ PROVIDERS = {
     "gemini": GeminiProvider,
     "xai": XAIProvider,
     "claude": ClaudeProvider,
+    "openrouter": OpenRouterProvider,
+    "deepseek": DeepSeekProvider,
+    "mistral": MistralProvider,
+    "together": TogetherProvider,
+    "fireworks": FireworksProvider,
+    "cerebras": CerebrasProvider,
+    "sambanova": SambaNovaProvider,
+    "perplexity": PerplexityProvider,
+    "nvidia": NvidiaProvider,
 }
 
 
