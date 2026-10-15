@@ -112,7 +112,7 @@ class Roster:
     def run(self):
         if not self.wait_for_wake_word():
             return
-        self.voice.speak(f"Hello. Roster is ready with {', '.join(self.provider.names)}.")
+        self.voice.speak("Hey, I'm here. What would you like to talk about?")
         running = True
         while running:
             running = self.run_once()

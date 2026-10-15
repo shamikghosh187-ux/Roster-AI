@@ -29,6 +29,13 @@ class VoiceIO:
         try:
             import pyttsx3
             self.engine = pyttsx3.init()
+            # Make spoken replies configurable without requiring a custom TTS
+            # provider. pyttsx3 backends may ignore unsupported properties.
+            try:
+                self.engine.setProperty("rate", settings.tts_rate)
+                self.engine.setProperty("volume", min(1.0, max(0.0, settings.tts_volume)))
+            except Exception:
+                pass
         except Exception as exc:
             self._tts_error = exc
             return None

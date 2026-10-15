@@ -74,6 +74,10 @@ The behavior is controlled by:
 - `ROSTER_WAKE_WORD=hey roster` — customize the phrase.
 - `ROSTER_WAKE_CHUNK_SECONDS=2.5` — microphone chunk size.
 - `ROSTER_WAKE_COOLDOWN_SECONDS=0.5` — cooldown after activation.
+- `ROSTER_RECORD_SECONDS=20` — maximum capture window per utterance; adaptive silence detection normally ends recording earlier.
+- `ROSTER_TTS_RATE=185` — speech rate for the built-in voice.
+- `ROSTER_TTS_VOLUME=1.0` — built-in speech volume from 0.0 to 1.0.
+- `ROSTER_NOISE_GATE=400` — input amplitude threshold for speech detection.
 
 CLI examples:
 

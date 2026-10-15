@@ -45,8 +45,10 @@ class Settings:
     claude_model: str = os.getenv("ROSTER_CLAUDE_MODEL", "claude-opus-5-5")
     provider_max_tokens: int = _env_int("ROSTER_PROVIDER_MAX_TOKENS", 4096, 1)
     sample_rate: int = 16000
-    record_seconds: int = 5
-    noise_gate: int = 400
+    record_seconds: int = _env_int("ROSTER_RECORD_SECONDS", 20, 1)
+    noise_gate: int = _env_int("ROSTER_NOISE_GATE", 400, 0)
+    tts_rate: int = _env_int("ROSTER_TTS_RATE", 185, 80)
+    tts_volume: float = _env_float("ROSTER_TTS_VOLUME", 1.0, 0.0)
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     xai_api_key: str = os.getenv("XAI_API_KEY", "")
