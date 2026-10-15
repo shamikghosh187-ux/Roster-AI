@@ -1,4 +1,8 @@
 import os
+import tempfile
+
+import numpy as np
+import scipy.io.wavfile as wav
 
 from roster.agent import Agent
 from roster.audio import VoiceIO
@@ -11,6 +15,9 @@ from roster.security import PermissionGate
 from roster.storage import SQLiteMemoryStore
 from roster.tools.builtin import ToolExecutor
 from roster.wake import WakeWordListener
+from roster.voice_backend import SoundDeviceFrameBackend
+from roster.voice_runtime import VoiceRuntime
+from roster.voice_settings import VoiceSettings
 
 
 class Roster:
@@ -18,6 +25,22 @@ class Roster:
         # VoiceIO is intentionally lazy: text-only startup must not require a
         # working Windows speech backend.
         self.voice = VoiceIO()
+        self.voice_runtime = None
+        if settings.voice_runtime_enabled:
+            start_threshold = max(0.005, settings.noise_gate / 32768.0)
+            runtime_settings = VoiceSettings(
+                sample_rate=settings.sample_rate,
+                max_listen_seconds=float(settings.record_seconds),
+                speech_start_threshold=start_threshold,
+                speech_end_threshold=max(0.003, start_threshold * 0.6),
+                tts_rate=settings.tts_rate,
+                tts_volume=min(1.0, settings.tts_volume),
+                wake_phrase=settings.wake_word,
+            )
+            audio_backend = SoundDeviceFrameBackend(sample_rate=settings.sample_rate)
+            tts_engine = self.voice._get_engine()
+            self.voice_runtime = VoiceRuntime(runtime_settings, audio=audio_backend, tts=tts_engine)
+            self.voice_runtime.apply_tts_settings()
         self.provider = create_router()
         self.memory_store = SQLiteMemoryStore(settings.memory_db_path)
         self.memory = ConversationMemory(store=self.memory_store)
@@ -37,7 +60,50 @@ class Roster:
         except (EOFError, KeyboardInterrupt):
             return ""
 
+    def _run_runtime_voice_once(self):
+        """Run one bounded voice turn through the realtime runtime and Groq STT."""
+        if not settings.groq_api_key:
+            print("Voice runtime requires GROQ_API_KEY for transcription.")
+            return True
+        audio_path = None
+        try:
+            frames = self.voice_runtime.capture()
+            if not frames:
+                return True
+            samples = np.concatenate([np.asarray(frame).reshape(-1) for frame in frames])
+            pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype(np.int16)
+            fd, audio_path = tempfile.mkstemp(suffix=".wav", prefix="roster-runtime-")
+            os.close(fd)
+            wav.write(audio_path, settings.sample_rate, pcm)
+            user_text = GroqProvider().transcribe(audio_path).strip()
+            if not user_text:
+                return True
+            print(f"🗣️ You: {user_text}")
+            running, result = self.agent.handle(user_text)
+            if self.voice_runtime.speak(str(result)):
+                # Keep capture and playback serialized until echo-aware
+                # full-duplex interruption is available.
+                timeout = max(8.0, min(90.0, len(str(result)) / 8.0 + 5.0))
+                if not self.voice_runtime.wait_for_speech(timeout):
+                    self.voice_runtime.stop_speaking()
+            return running
+        except KeyboardInterrupt:
+            self.voice_runtime.stop()
+            return False
+        except Exception as exc:
+            print(f"❌ Voice runtime error: {exc}")
+            self.voice.speak("I had trouble with that. Let's try again.")
+            return True
+        finally:
+            if audio_path:
+                try:
+                    os.remove(audio_path)
+                except OSError:
+                    pass
+
     def run_once(self):
+        if self.voice_runtime is not None and settings.provider_input in {"auto", "voice"}:
+            return self._run_runtime_voice_once()
         audio_path = None
         try:
             # Explicit voice mode must never silently become text mode. Auto mode
@@ -114,5 +180,9 @@ class Roster:
             return
         self.voice.speak("Hey, I'm here. What would you like to talk about?")
         running = True
-        while running:
-            running = self.run_once()
+        try:
+            while running:
+                running = self.run_once()
+        finally:
+            if self.voice_runtime is not None:
+                self.voice_runtime.stop()
