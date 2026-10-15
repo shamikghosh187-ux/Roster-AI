@@ -36,6 +36,17 @@ def test_desktop_pages_and_busy_provider_selection(monkeypatch, tmp_path, qt_app
         }
         assert window.provider_box.currentText() == "auto"
 
+        search_item = next(
+            window.tools_list.item(i)
+            for i in range(window.tools_list.count())
+            if window.tools_list.item(i).data(desktop.Qt.UserRole) == "search"
+        )
+        assert search_item.checkState() == desktop.Qt.Checked
+        search_item.setCheckState(desktop.Qt.Unchecked)
+        assert not window.tools.is_tool_enabled("search")
+        search_item.setCheckState(desktop.Qt.Checked)
+        assert window.tools.is_tool_enabled("search")
+
         window.provider_box.setCurrentText("gemini")
         assert window._selected_provider == "gemini"
         assert window.agent.cognitive_recovery.provider is window.agent.provider
