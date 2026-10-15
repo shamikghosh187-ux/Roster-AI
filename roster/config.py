@@ -33,6 +33,7 @@ def _env_int(name, default, minimum=0):
 class Settings:
     provider: str = os.getenv("ROSTER_PROVIDER", "groq")
     provider_input: str = os.getenv("ROSTER_INPUT_MODE", "auto").strip().lower()
+    voice_runtime_enabled: bool = os.getenv("ROSTER_VOICE_RUNTIME", "0").strip().lower() in {"1", "true", "yes", "on"}
     wake_mode: str = os.getenv("ROSTER_WAKE_MODE", "auto").strip().lower()
     wake_word: str = os.getenv("ROSTER_WAKE_WORD", "hey roster").strip() or "hey roster"
     wake_chunk_seconds: float = _env_float("ROSTER_WAKE_CHUNK_SECONDS", 2.5, 0.1)
