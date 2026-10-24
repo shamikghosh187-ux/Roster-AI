@@ -140,3 +140,38 @@ The doctor reports configuration issues, dependency availability, and which prov
 - Prefer explicit health/readiness signals over implicit startup assumptions.
 - Keep metrics thread-safe and dependency-light.
 - Keep provider, audio, UI, and computer integrations behind composition boundaries.
+
+
+## Windows application bundle (early access)
+
+ROSTER is a local Windows application, not a Vercel web function. Its microphone, speakers, wake-word listener, and computer-control features must run on the PC that owns those devices. Vercel is not the deployment target for the desktop assistant.
+
+### Build a portable folder
+
+Use Windows PowerShell from a fresh checkout. Python 3.11 is the recommended build environment for the first packaged builds:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\build_windows.ps1
+```
+
+The script creates `dist\ROSTER\ROSTER.exe` and its supporting files. This is an **on-directory portable bundle**, not an installer. Keep the whole `dist\ROSTER` folder together when moving it to another PC.
+
+Start with the diagnostic commands:
+
+```powershell
+.\dist\ROSTER\ROSTER.exe --list-providers
+.\dist\ROSTER\ROSTER.exe --doctor
+```
+
+### Configure secrets locally
+
+Create a private `.env` file in the project working directory when running from source, or configure the relevant environment variables in the Windows user environment when using the portable bundle. Do not put API keys in source control, build scripts, release artifacts, or the executable. Never send a filled `.env` file when asking for help.
+
+The packaged build does not include your API keys, saved memory, or personal configuration. Provider access still depends on your own API account and selected model. Microphone and speaker behavior must be validated on the target Windows machine.
+
+### Automated Windows build
+
+The Windows Packaging workflow runs on pull requests and pushes to `main`, and can also be started manually from GitHub Actions. It runs a packaged CLI smoke check and uploads the portable folder as a workflow artifact. The artifact is for validation and testing; it is not yet a signed installer or a public production release.
+
+**Important:** CI can verify that the bundle builds and that its CLI starts. It cannot prove microphone permissions, wake-word accuracy, echo handling, or speaker playback on your specific hardware. Those require a real-device test.
