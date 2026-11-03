@@ -12,7 +12,7 @@ from roster.runtime import AssistantRuntime
 from roster.security import PermissionGate
 from roster.tools.builtin import ToolExecutor
 from roster.memory import ConversationMemory
-from roster.providers.factory import create_provider, create_router
+from roster.providers.factory import create_provider, create_router, provider_names
 from roster.storage import SQLiteMemoryStore
 from roster.agent import Agent
 
@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
 
         sl.addWidget(QLabel("AI provider"))
         self.provider_box = QComboBox()
-        self.provider_box.addItems(["auto", "groq", "gemini", "xai", "claude"])
+        self.provider_box.addItems(["auto", *provider_names()])
         sl.addWidget(self.provider_box)
         self.status = QLabel("● Starting…")
         self.status.setObjectName("muted")
@@ -412,7 +412,7 @@ class MainWindow(QMainWindow):
             if getattr(self.agent, "cognitive_recovery", None) is not None:
                 self.agent.cognitive_recovery.provider = selected_provider
             self._selected_provider = name
-            self.model.setText(settings.chat_model if name == "auto" else f"Provider: {name}")
+            self.model.setText(f"Auto · {settings.provider}" if name == "auto" else f"Provider: {name}")
             self.statusBar().showMessage(
                 "Automatic provider routing enabled." if name == "auto"
                 else f"Provider switched to {name}."
