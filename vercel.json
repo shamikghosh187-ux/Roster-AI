@@ -1,0 +1,6 @@
+{
+  "framework": null,
+  "installCommand": "echo Roster AI static site requires no install",
+  "buildCommand": "echo Building Roster AI project landing page",
+  "outputDirectory": "public"
+}

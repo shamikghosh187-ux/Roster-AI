@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#09090b">
+  <meta name="description" content="Roster AI is a Windows desktop voice assistant with provider routing, tools, and memory.">
+  <title>Roster AI — Windows Desktop Assistant</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#09090b;color:#f4f4f5}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 0%,#27203d 0,transparent 48%),#09090b}
+    main{width:min(760px,100%);border:1px solid #27272a;background:linear-gradient(145deg,#15141b,#0e0e11);border-radius:28px;padding:clamp(28px,6vw,58px);box-shadow:0 24px 100px #0008}
+    .eyebrow{display:inline-flex;gap:9px;align-items:center;color:#c4b5fd;font-size:12px;font-weight:750;letter-spacing:.14em;text-transform:uppercase}
+    .dot{width:8px;height:8px;border-radius:50%;background:#a78bfa;box-shadow:0 0 16px #a78bfa}
+    h1{font-size:clamp(42px,8vw,72px);letter-spacing:-.06em;line-height:1;margin:24px 0 18px}h1 span{color:#a78bfa}
+    p{color:#a1a1aa;font-size:17px;line-height:1.75;max-width:590px}.actions{display:flex;flex-wrap:wrap;gap:12px;margin:30px 0}
+    a{display:inline-flex;align-items:center;justify-content:center;padding:13px 18px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px}
+    .primary{background:#a78bfa;color:#17121f}.secondary{border:1px solid #3f3f46;color:#e4e4e7}
+    .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:34px}
+    .feature{padding:15px;border:1px solid #27272a;border-radius:14px;color:#d4d4d8;font-size:13px;background:#ffffff04}
+    footer{margin-top:32px;color:#71717a;font-size:12px}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow"><span class="dot"></span> Windows desktop assistant</div>
+    <h1>Meet <span>Roster.</span></h1>
+    <p>One desktop assistant. Multiple AI providers. Roster is a locally installed Windows application—not a hosted Python web service. This page is the project's lightweight website; the assistant runs on your PC.</p>
+    <div class="actions">
+      <a class="primary" href="https://github.com/shamikghosh187-ux/Roster-AI/releases">Get Roster for Windows</a>
+      <a class="secondary" href="https://github.com/shamikghosh187-ux/Roster-AI">View source on GitHub</a>
+    </div>
+    <section class="features" aria-label="Features">
+      <div class="feature">✦ Multi-provider AI routing</div>
+      <div class="feature">⌘ Desktop tools & workflows</div>
+      <div class="feature">◉ Local conversation memory</div>
+    </section>
+    <footer>Roster AI · Open-source desktop project · Windows</footer>
+  </main>
+</body>
+</html>

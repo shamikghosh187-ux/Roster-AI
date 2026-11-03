@@ -34,16 +34,22 @@ Choose the smallest safe action. For normal conversation use chat."""
 
 
 def parse_intent(raw):
-    raw = (raw or "").strip()
+    # Providers should return text, but keep malformed/non-object responses from
+    # crashing the agent before it can fall back to a normal chat response.
+    raw = raw.strip() if isinstance(raw, str) else str(raw or "").strip()
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
         return Intent(action=Action.CHAT, argument=raw)
+
+    if not isinstance(data, dict):
+        return Intent(action=Action.CHAT, argument=raw)
+
     try:
         action = Action(str(data.get("action", "chat")).lower())
     except ValueError:
         action = Action.CHAT
-    metadata = data.get("metadata") if isinstance(data, dict) else {}
+    metadata = data.get("metadata")
     return Intent(
         action=action,
         argument=str(data.get("argument", "")).strip(),
@@ -52,7 +58,7 @@ def parse_intent(raw):
 
 
 def parse_workflow(raw):
-    raw = (raw or "").strip()
+    raw = raw.strip() if isinstance(raw, str) else str(raw or "").strip()
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
