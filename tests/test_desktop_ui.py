@@ -35,6 +35,9 @@ def test_desktop_pages_and_busy_provider_selection(monkeypatch, tmp_path, qt_app
             "Conversation", "Memory", "Tools", "Tasks", "Diagnostics",
         }
         assert window.provider_box.currentText() == "auto"
+        assert {window.provider_box.itemText(i) for i in range(window.provider_box.count())} == {
+            "auto", *desktop.provider_names(),
+        }
 
         search_item = next(
             window.tools_list.item(i)
